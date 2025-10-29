@@ -1,4 +1,4 @@
 FROM scratch
-COPY NAME /usr/bin/NAME
+COPY tbonsai /usr/bin/tbonsai
 ENV HOME=/home/user
-ENTRYPOINT ["/usr/bin/NAME"]
+ENTRYPOINT ["/usr/bin/tbonsai"]

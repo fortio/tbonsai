@@ -18,12 +18,12 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     call-codeql:
         uses: fortio/workflows/.github/workflows/codeql-analysis.yml@main
-    releaser-NAME:
+    releaser-tbonsai:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: fortio/workflows/.github/workflows/releaser.yml@main
         with:
-            description: "Fortio NAME DESCRIPTION"
-            binary_name: "NAME"
+            description: "Fortio tbonsai Ansipixels port of cbonsai"
+            binary_name: "tbonsai"
             dockerfile: "./Dockerfile"
         secrets:
             GH_PAT: ${{ secrets.GH_PAT }}
