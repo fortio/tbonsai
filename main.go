@@ -7,6 +7,7 @@ import (
 	"flag"
 	"os"
 	"runtime/pprof"
+	"strings"
 
 	"fortio.org/cli"
 	"fortio.org/log"
@@ -27,7 +28,7 @@ func Main() int {
 		"Use true color (24-bit RGB) instead of 8-bit ANSI colors (default is true if COLORTERM is set)")
 	fCpuprofile := flag.String("profile-cpu", "", "write cpu profile to `file`")
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
-	fFPS := flag.Float64("fps", 60, "Frames per second (ansipoixels rendering)")
+	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -51,11 +52,13 @@ func Main() int {
 	}
 	defer ap.Restore()
 	ap.SyncBackgroundColor()
+	ap.AutoSync = false // keeps cursor blinking.
 	ap.OnResize = func() error {
 		ap.ClearScreen()
 		ap.StartSyncMode()
 		// Redraw/resize/do something here:
-		ap.WriteBoxed(ap.H/2-1, "Welcome to tbonsai!\n%dx%d\nQ to quit.", ap.W, ap.H)
+		st.Pot()
+		ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit.", ap.W, ap.H)
 		// ...
 		ap.EndSyncMode()
 		return nil
@@ -91,8 +94,22 @@ func (st *State) Tick() bool {
 		log.Infof("Exiting on %q", c)
 		return false
 	default:
-		log.Debugf("Input %q...", c)
 		// Do something
 	}
 	return true
+}
+
+func (st *State) Pot() {
+	w := st.ap.W
+	h := st.ap.H
+	cx := (w - 1) / 2
+	// pot base ~2/3rd of the width
+	radius := w / 3
+	// Feet
+	st.ap.WriteAtStr(cx-radius+5, h-1, "○")
+	st.ap.WriteAtStr(cx+radius-5, h-1, "○")
+	st.ap.WriteAtStr(cx-radius, h-2, "╲"+strings.Repeat("▁", 2*radius-1)+"╱")
+	st.ap.WriteAtStr(cx-radius-1, h-3, "╲")
+	st.ap.WriteAtStr(cx+radius+1, h-3, "╱")
+	st.ap.WriteAtStr(cx-radius-1, h-4, strings.Repeat("▁", 2*radius+3))
 }
