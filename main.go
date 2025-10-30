@@ -102,8 +102,8 @@ func (st *State) Tick() bool {
 func (st *State) Pot() {
 	w := st.ap.W
 	h := st.ap.H
-	// 2rd of the width
 	cx := (w - 1) / 2
+	// pot base ~2/3rd of the width
 	radius := w / 3
 	// Feet
 	st.ap.WriteAtStr(cx-radius+5, h-1, "○")
