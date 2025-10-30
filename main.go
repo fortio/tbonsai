@@ -104,8 +104,8 @@ func (st *State) Pot() {
 	w := st.ap.W
 	h := st.ap.H
 	cx := (w - 1) / 2
-	// pot base ~2/3rd of the width
-	radius := w / 3
+	// pot base 1/3rd of the width
+	radius := w / 6
 	// Feet
 	st.ap.WriteAtStr(cx-radius-1, h-3, "╲")
 	st.ap.WriteAtStr(cx+radius+1, h-3, "╱")
