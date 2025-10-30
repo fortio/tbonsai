@@ -58,7 +58,7 @@ func Main() int {
 		ap.StartSyncMode()
 		// Redraw/resize/do something here:
 		st.Pot()
-		ap.WriteBoxed(ap.H/2-1, "Welcome to tbonsai!\n%dx%d\nQ to quit.", ap.W, ap.H)
+		ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit.", ap.W, ap.H)
 		// ...
 		ap.EndSyncMode()
 		return nil
