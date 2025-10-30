@@ -106,8 +106,10 @@ func (st *State) Pot() {
 	cx := (w - 1) / 2
 	radius := w / 3
 	// Feet
-	st.ap.WriteAtStr(cx-radius+2, h-1, "○")
-	st.ap.WriteAtStr(cx+radius-2, h-1, "○")
+	st.ap.WriteAtStr(cx-radius+5, h-1, "○")
+	st.ap.WriteAtStr(cx+radius-5, h-1, "○")
 	st.ap.WriteAtStr(cx-radius, h-2, "╲"+strings.Repeat("▁", 2*radius-1)+"╱")
-	st.ap.WriteAtStr(cx-radius, h-3, strings.Repeat("▁", 2*radius+1))
+	st.ap.WriteAtStr(cx-radius-1, h-3, "╲")
+	st.ap.WriteAtStr(cx+radius+1, h-3, "╱")
+	st.ap.WriteAtStr(cx-radius-1, h-4, strings.Repeat("▁", 2*radius+3))
 }
