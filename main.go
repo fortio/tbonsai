@@ -12,6 +12,7 @@ import (
 	"fortio.org/cli"
 	"fortio.org/log"
 	"fortio.org/terminal/ansipixels"
+	"fortio.org/terminal/ansipixels/tcolor"
 )
 
 func main() {
@@ -103,13 +104,15 @@ func (st *State) Pot() {
 	w := st.ap.W
 	h := st.ap.H
 	cx := (w - 1) / 2
-	// pot base ~2/3rd of the width
-	radius := w / 3
+	// pot base 1/3rd of the width
+	radius := w / 6
 	// Feet
-	st.ap.WriteAtStr(cx-radius+5, h-1, "⚪")
-	st.ap.WriteAtStr(cx+radius-6, h-1, "⚪")
-	st.ap.WriteAtStr(cx-radius, h-2, "╲"+strings.Repeat("▁", 2*radius-1)+"╱")
 	st.ap.WriteAtStr(cx-radius-1, h-3, "╲")
 	st.ap.WriteAtStr(cx+radius+1, h-3, "╱")
-	st.ap.WriteAtStr(cx-radius-1, h-4, strings.Repeat("▁", 2*radius+3))
+	gray := tcolor.DarkGray.Foreground()
+	st.ap.WriteAtStr(cx-radius, h-2, "╲"+gray+strings.Repeat("▁", 2*radius-1)+tcolor.Reset+"╱")
+	st.ap.WriteString(gray)
+	st.ap.WriteAtStr(cx-radius+6, h-1, "●")
+	st.ap.WriteAtStr(cx+radius-6, h-1, "●") // or ⚪ at -7
+	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
 }
