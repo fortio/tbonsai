@@ -8,6 +8,15 @@
 
 Ansipixels port of cbonsai
 
+WIP
+
+```
+            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+            ╲                                                     ╱
+             ╲▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁╱
+                  ⚪                                       ⚪
+```
+
 ## Install
 You can get the binary from [releases](https://github.com/fortio/tbonsai/releases)
 
