@@ -103,7 +103,7 @@ func (b *Branch) Add(t BranchType) *Branch {
 	// new branch parameters
 	newLength := b.Length * (0.4 + 0.5*rand.Float64()) //nolint:gosec // not crypto.
 	newThickness := b.Thickness * 0.7
-	// orthogonal angle for testing
+	// calculate branch angle based on type
 	var newAngle float64
 	wiggle := (rand.Float64() - 0.5) * (math.Pi / 20) //nolint:gosec // not crypto.
 	switch t {
