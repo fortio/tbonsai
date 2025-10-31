@@ -1,5 +1,4 @@
 // Package ptree implements procedural tree generation.
-
 package ptree
 
 import (
@@ -41,7 +40,7 @@ func (c *Canvas) Trunk() *Branch {
 	// Create the trunk of the tree
 	trunk := &Branch{
 		Start:     Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
-		Angle:     math.Pi/2 + .1*(rand.Float64()-0.5),
+		Angle:     math.Pi/2 + .1*(rand.Float64()-0.5), //nolint:gosec // not crypto.
 		Length:    float64(c.Height) * 0.45,
 		Thickness: 1.0,
 	}
@@ -67,18 +66,18 @@ func (c *Canvas) GenerateBranches(cur *Branch, numBranches, depth int) {
 	}
 }
 
-// Generate the branches of the tree
+// Add a branch.
 func (b *Branch) Add() *Branch {
 	// pick branch point
-	dist := b.Length * (0.4 + 0.6*rand.Float64())
+	dist := b.Length * (0.4 + 0.6*rand.Float64()) //nolint:gosec // not crypto.
 	branchPoint := Point{
 		X: b.Start.X + dist*math.Cos(b.Angle),
 		Y: b.Start.Y - dist*math.Sin(b.Angle),
 	}
 	// new branch parameters
-	newLength := b.Length * (0.4 + 0.5*rand.Float64())
+	newLength := b.Length * (0.4 + 0.5*rand.Float64()) //nolint:gosec // not crypto.
 	newThickness := b.Thickness * 0.7
-	newAngle := b.Angle + (rand.Float64()*0.5+0.2)*(1-2*rand.Float64())
+	newAngle := b.Angle + (rand.Float64()*0.5+0.2)*(1-2*rand.Float64()) //nolint:gosec // not crypto.
 	newB := &Branch{
 		Start:     branchPoint,
 		Angle:     newAngle,
