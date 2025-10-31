@@ -70,7 +70,6 @@ func Main() int {
 		ap.HideCursor()
 	}
 	ap.SyncBackgroundColor()
-	ap.AutoSync = false // keeps cursor blinking.
 	ap.OnResize = func() error {
 		ap.ClearScreen()
 		ap.StartSyncMode()
