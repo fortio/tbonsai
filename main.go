@@ -5,12 +5,15 @@ package main
 
 import (
 	"flag"
+	"image"
+	"image/draw"
 	"os"
 	"runtime/pprof"
 	"strings"
 
 	"fortio.org/cli"
 	"fortio.org/log"
+	"fortio.org/tbonsai/ptree"
 	"fortio.org/terminal/ansipixels"
 	"fortio.org/terminal/ansipixels/tcolor"
 )
@@ -59,7 +62,7 @@ func Main() int {
 		ap.StartSyncMode()
 		// Redraw/resize/do something here:
 		st.Pot()
-		ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit.", ap.W, ap.H)
+		ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
 		// ...
 		ap.EndSyncMode()
 		return nil
@@ -94,6 +97,8 @@ func (st *State) Tick() bool {
 	case 'q', 'Q', 3: // Ctrl-C
 		log.Infof("Exiting on %q", c)
 		return false
+	case 't', 'T':
+		st.DrawTree()
 	default:
 		// Do something
 	}
@@ -115,4 +120,18 @@ func (st *State) Pot() {
 	st.ap.WriteAtStr(cx-radius+6, h-1, "●")
 	st.ap.WriteAtStr(cx+radius-6, h-1, "●") // or ⚪ at -7
 	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
+}
+
+func (st *State) DrawTree() {
+	dy := 6
+	c := ptree.NewCanvas(st.ap.W, 2*st.ap.H-dy)
+	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
+	ptree.DrawTree(img, c)
+	nimg := image.NewRGBA(img.Bounds())
+	draw.Draw(nimg, img.Bounds(), img, image.Point{}, draw.Src)
+	st.ap.StartSyncMode()
+	st.ap.ClearScreen()
+	st.Pot()
+	_ = st.ap.ShowScaledImage(nimg)
+	st.ap.EndSyncMode()
 }
