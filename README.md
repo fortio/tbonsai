@@ -6,7 +6,7 @@
 
 # tbonsai
 
-Ansipixels port of cbonsai
+Ansipixels based reinterpretation of cbonsai (without looking at that program's source)
 
 WIP - current state:
 
