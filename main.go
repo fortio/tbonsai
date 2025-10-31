@@ -10,8 +10,10 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"time"
 
 	"fortio.org/cli"
+	"fortio.org/duration"
 	"fortio.org/log"
 	"fortio.org/tbonsai/ptree"
 	"fortio.org/terminal/ansipixels"
@@ -26,6 +28,8 @@ type State struct {
 	ap   *ansipixels.AnsiPixels
 	pot  bool
 	tree bool
+	auto time.Duration
+	last time.Time
 }
 
 func Main() int {
@@ -36,6 +40,7 @@ func Main() int {
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
 	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
+	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this interval and no user input is needed")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -51,14 +56,19 @@ func Main() int {
 	}
 	ap := ansipixels.NewAnsiPixels(*fFPS)
 	st := &State{
-		ap:  ap,
-		pot: *fPot,
+		ap:   ap,
+		pot:  *fPot,
+		auto: *fAuto,
 	}
 	ap.TrueColor = *fTrueColor
 	if err := ap.Open(); err != nil {
 		return 1 // error already logged
 	}
 	defer ap.Restore()
+	if st.auto > 0 {
+		st.tree = true
+		ap.HideCursor()
+	}
 	ap.SyncBackgroundColor()
 	ap.AutoSync = false // keeps cursor blinking.
 	ap.OnResize = func() error {
@@ -98,6 +108,9 @@ func Main() int {
 }
 
 func (st *State) Tick() bool {
+	if st.auto > 0 && time.Since(st.last) >= st.auto {
+		st.DrawTree()
+	}
 	if len(st.ap.Data) == 0 {
 		return true
 	}
@@ -107,8 +120,10 @@ func (st *State) Tick() bool {
 		log.Infof("Exiting on %q", c)
 		return false
 	case 't', 'T':
-		st.ap.HideCursor()
-		st.tree = true
+		if !st.tree {
+			st.ap.HideCursor()
+			st.tree = true
+		}
 		st.DrawTree()
 	default:
 		// Do something
@@ -151,4 +166,5 @@ func (st *State) DrawTree() {
 	st.Pot()
 	_ = st.ap.ShowScaledImage(nimg)
 	st.ap.EndSyncMode()
+	st.last = time.Now()
 }

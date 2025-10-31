@@ -43,7 +43,12 @@ docker run -ti fortio/tbonsai
 
 ## Usage
 
-Use `-pot` to show the pot for instance, see help for other flags/options
+Use `-pot` to show the pot for instance,
+
+Use `-auto 1s` for a new tree every 1s without needing to press "T"
+
+
+See help for other flags/options
 
 ```
 tbonsai help
