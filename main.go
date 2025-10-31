@@ -23,7 +23,9 @@ func main() {
 }
 
 type State struct {
-	ap *ansipixels.AnsiPixels
+	ap   *ansipixels.AnsiPixels
+	pot  bool
+	tree bool
 }
 
 func Main() int {
@@ -32,6 +34,7 @@ func Main() int {
 		"Use true color (24-bit RGB) instead of 8-bit ANSI colors (default is true if COLORTERM is set)")
 	fCpuprofile := flag.String("profile-cpu", "", "write cpu profile to `file`")
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
+	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
 	cli.Main()
 	if *fCpuprofile != "" {
@@ -48,7 +51,8 @@ func Main() int {
 	}
 	ap := ansipixels.NewAnsiPixels(*fFPS)
 	st := &State{
-		ap: ap,
+		ap:  ap,
+		pot: *fPot,
 	}
 	ap.TrueColor = *fTrueColor
 	if err := ap.Open(); err != nil {
@@ -60,14 +64,19 @@ func Main() int {
 	ap.OnResize = func() error {
 		ap.ClearScreen()
 		ap.StartSyncMode()
-		// Redraw/resize/do something here:
-		st.Pot()
-		ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
-		// ...
+		if st.tree {
+			// In tree mode, redraw a new tree at the new size
+			st.DrawTree()
+		} else {
+			// Initial screen being resized
+			st.Pot()
+			ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
+		}
 		ap.EndSyncMode()
 		return nil
 	}
-	_ = ap.OnResize() // initial draw.
+	_ = ap.OnResize()   // initial draw.
+	ap.AutoSync = false // keeps cursor blinking.
 	err := ap.FPSTicks(st.Tick)
 	if *fMemprofile != "" {
 		f, errMP := os.Create(*fMemprofile)
@@ -98,6 +107,8 @@ func (st *State) Tick() bool {
 		log.Infof("Exiting on %q", c)
 		return false
 	case 't', 'T':
+		st.ap.HideCursor()
+		st.tree = true
 		st.DrawTree()
 	default:
 		// Do something
@@ -106,6 +117,9 @@ func (st *State) Tick() bool {
 }
 
 func (st *State) Pot() {
+	if !st.pot {
+		return
+	}
 	w := st.ap.W
 	h := st.ap.H
 	cx := (w - 1) / 2
@@ -124,6 +138,9 @@ func (st *State) Pot() {
 
 func (st *State) DrawTree() {
 	dy := 6
+	if !st.pot {
+		dy = 0
+	}
 	c := ptree.NewCanvas(st.ap.W, 2*st.ap.H-dy)
 	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
 	ptree.DrawTree(img, c)

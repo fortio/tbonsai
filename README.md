@@ -8,7 +8,7 @@
 
 Ansipixels based reinterpretation of cbonsai (without looking at that program's source)
 
-WIP - current state:
+WIP - current state (with optional -pot on):
 
 ![Screenshot](example.png)
 
@@ -43,8 +43,8 @@ docker run -ti fortio/tbonsai
 
 ## Usage
 
+Use `-pot` to show the pot for instance, see help for other flags/options
+
 ```
 tbonsai help
-
-flags:
 ```
