@@ -8,7 +8,11 @@
 
 Ansipixels port of cbonsai
 
-WIP
+WIP - current state:
+
+![Screenshot](example.png)
+
+Which is progress from earlier:
 
 ```
             ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
