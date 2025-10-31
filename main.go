@@ -10,8 +10,10 @@ import (
 	"os"
 	"runtime/pprof"
 	"strings"
+	"time"
 
 	"fortio.org/cli"
+	"fortio.org/duration"
 	"fortio.org/log"
 	"fortio.org/tbonsai/ptree"
 	"fortio.org/terminal/ansipixels"
@@ -23,7 +25,11 @@ func main() {
 }
 
 type State struct {
-	ap *ansipixels.AnsiPixels
+	ap   *ansipixels.AnsiPixels
+	pot  bool
+	tree bool
+	auto time.Duration
+	last time.Time
 }
 
 func Main() int {
@@ -32,7 +38,9 @@ func Main() int {
 		"Use true color (24-bit RGB) instead of 8-bit ANSI colors (default is true if COLORTERM is set)")
 	fCpuprofile := flag.String("profile-cpu", "", "write cpu profile to `file`")
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
+	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
+	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this interval and no user input is needed")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -48,26 +56,36 @@ func Main() int {
 	}
 	ap := ansipixels.NewAnsiPixels(*fFPS)
 	st := &State{
-		ap: ap,
+		ap:   ap,
+		pot:  *fPot,
+		auto: *fAuto,
 	}
 	ap.TrueColor = *fTrueColor
 	if err := ap.Open(); err != nil {
 		return 1 // error already logged
 	}
 	defer ap.Restore()
+	if st.auto > 0 {
+		st.tree = true
+		ap.HideCursor()
+	}
 	ap.SyncBackgroundColor()
-	ap.AutoSync = false // keeps cursor blinking.
 	ap.OnResize = func() error {
 		ap.ClearScreen()
 		ap.StartSyncMode()
-		// Redraw/resize/do something here:
-		st.Pot()
-		ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
-		// ...
+		if st.tree {
+			// In tree mode, redraw a new tree at the new size
+			st.DrawTree()
+		} else {
+			// Initial screen being resized
+			st.Pot()
+			ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
+		}
 		ap.EndSyncMode()
 		return nil
 	}
-	_ = ap.OnResize() // initial draw.
+	_ = ap.OnResize()   // initial draw.
+	ap.AutoSync = false // keeps cursor blinking.
 	err := ap.FPSTicks(st.Tick)
 	if *fMemprofile != "" {
 		f, errMP := os.Create(*fMemprofile)
@@ -89,6 +107,9 @@ func Main() int {
 }
 
 func (st *State) Tick() bool {
+	if st.auto > 0 && time.Since(st.last) >= st.auto {
+		st.DrawTree()
+	}
 	if len(st.ap.Data) == 0 {
 		return true
 	}
@@ -98,6 +119,10 @@ func (st *State) Tick() bool {
 		log.Infof("Exiting on %q", c)
 		return false
 	case 't', 'T':
+		if !st.tree {
+			st.ap.HideCursor()
+			st.tree = true
+		}
 		st.DrawTree()
 	default:
 		// Do something
@@ -106,6 +131,9 @@ func (st *State) Tick() bool {
 }
 
 func (st *State) Pot() {
+	if !st.pot {
+		return
+	}
 	w := st.ap.W
 	h := st.ap.H
 	cx := (w - 1) / 2
@@ -124,6 +152,9 @@ func (st *State) Pot() {
 
 func (st *State) DrawTree() {
 	dy := 6
+	if !st.pot {
+		dy = 0
+	}
 	c := ptree.NewCanvas(st.ap.W, 2*st.ap.H-dy)
 	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
 	ptree.DrawTree(img, c)
@@ -134,4 +165,5 @@ func (st *State) DrawTree() {
 	st.Pot()
 	_ = st.ap.ShowScaledImage(nimg)
 	st.ap.EndSyncMode()
+	st.last = time.Now()
 }
