@@ -25,11 +25,12 @@ func main() {
 }
 
 type State struct {
-	ap   *ansipixels.AnsiPixels
-	pot  bool
-	tree bool
-	auto time.Duration
-	last time.Time
+	ap        *ansipixels.AnsiPixels
+	pot       bool
+	tree      bool
+	auto      time.Duration
+	last      time.Time
+	monoColor tcolor.RGBColor
 }
 
 func Main() int {
@@ -40,6 +41,8 @@ func Main() int {
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
 	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
+	fMonoColor := flag.String("color", "",
+		"If set to a `hex color` like FD9103, use that single color for the tree instead of random colors")
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
 	cli.Main()
 	if *fCpuprofile != "" {
@@ -59,6 +62,14 @@ func Main() int {
 		ap:   ap,
 		pot:  *fPot,
 		auto: *fAuto,
+	}
+	if *fMonoColor != "" {
+		c, err := tcolor.FromString(*fMonoColor)
+		if err != nil {
+			return log.FErrf("can't parse mono-color %q: %v", *fMonoColor, err)
+		}
+		ct, data := c.Decode()
+		st.monoColor = tcolor.ToRGB(ct, data)
 	}
 	ap.TrueColor = *fTrueColor
 	if err := ap.Open(); err != nil {
@@ -145,8 +156,8 @@ func (st *State) Pot() {
 	gray := tcolor.DarkGray.Foreground()
 	st.ap.WriteAtStr(cx-radius, h-2, "╲"+gray+strings.Repeat("▁", 2*radius-1)+tcolor.Reset+"╱")
 	st.ap.WriteString(gray)
-	st.ap.WriteAtStr(cx-radius+6, h-1, "●")
-	st.ap.WriteAtStr(cx+radius-6, h-1, "●") // or ⚪ at -7
+	st.ap.WriteAtStr(cx-radius+5, h-1, "●")
+	st.ap.WriteAtStr(cx+radius-5, h-1, "●") // or ⚪ at -7
 	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
 }
 
@@ -156,6 +167,7 @@ func (st *State) DrawTree() {
 		dy = 0
 	}
 	c := ptree.NewCanvas(st.ap.W, 2*st.ap.H-dy)
+	c.MonoColor = st.monoColor
 	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
 	ptree.DrawTree(img, c)
 	nimg := image.NewRGBA(img.Bounds())

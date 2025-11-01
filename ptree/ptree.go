@@ -4,11 +4,14 @@ package ptree
 import (
 	"math"
 	"math/rand/v2"
+
+	"fortio.org/terminal/ansipixels/tcolor"
 )
 
 type Canvas struct {
 	Width, Height int
 	Branches      []*Branch
+	MonoColor     tcolor.RGBColor
 }
 
 type Point struct {

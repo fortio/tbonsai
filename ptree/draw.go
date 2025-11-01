@@ -10,14 +10,18 @@ import (
 )
 
 func DrawTree(img *image.NRGBA, c *Canvas) {
+	var notset tcolor.RGBColor
 	for _, b := range c.Branches {
-		drawBranch(img, b)
+		rgb := c.MonoColor
+		if rgb == notset {
+			c := tcolor.Oklchf(.7, .7, rand.Float64()) //nolint:gosec // not crypto.
+			ct, data := c.Decode()
+			rgb = tcolor.ToRGB(ct, data)
+		}
+		drawBranch(img, b, rgb)
 	}
 }
 
-func drawBranch(img *image.NRGBA, b *Branch) {
-	c := tcolor.Oklchf(.7, .7, rand.Float64()) //nolint:gosec // not crypto.
-	ct, data := c.Decode()
-	rgbg := tcolor.ToRGB(ct, data)
-	ansipixels.DrawAALine(img, b.Start.X, b.Start.Y, b.End.X, b.End.Y, color.NRGBA{R: rgbg.R, G: rgbg.G, B: rgbg.B, A: 255})
+func drawBranch(img *image.NRGBA, b *Branch, rgb tcolor.RGBColor) {
+	ansipixels.DrawAALine(img, b.Start.X, b.Start.Y, b.End.X, b.End.Y, color.NRGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255})
 }
