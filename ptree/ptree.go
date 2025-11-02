@@ -3,8 +3,8 @@ package ptree
 
 import (
 	"math"
-	"math/rand/v2"
 
+	"fortio.org/rand"
 	"fortio.org/terminal/ansipixels/tcolor"
 )
 
@@ -12,6 +12,7 @@ type Canvas struct {
 	Width, Height int
 	Branches      []*Branch
 	MonoColor     tcolor.RGBColor
+	Rand          rand.Rand
 }
 
 type Point struct {
@@ -19,18 +20,19 @@ type Point struct {
 }
 
 type Branch struct {
-	Start     Point
-	End       Point
-	Angle     float64
-	Length    float64
-	Thickness float64
+	Start  Point
+	End    Point
+	Angle  float64
+	Length float64
+	Rand   rand.Rand
 }
 
-func NewCanvas(width, height int) *Canvas {
+func NewCanvas(rng rand.Rand, width, height int) *Canvas {
 	c := &Canvas{
 		Width:    width,
 		Height:   height,
 		Branches: make([]*Branch, 0, 20),
+		Rand:     rng,
 	}
 	trunk := c.Trunk()
 	c.Branches = append(c.Branches, trunk)
@@ -42,10 +44,10 @@ func NewCanvas(width, height int) *Canvas {
 func (c *Canvas) Trunk() *Branch {
 	// Create the trunk of the tree
 	trunk := &Branch{
-		Start:     Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
-		Angle:     math.Pi/2 + .2*(rand.Float64()-0.5), //nolint:gosec // not crypto.
-		Length:    float64(c.Height) * 0.4,
-		Thickness: 1.0,
+		Start:  Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
+		Angle:  math.Pi/2 + .2*(c.Rand.Float64()-0.5),
+		Length: float64(c.Height) * 0.4,
+		Rand:   c.Rand,
 	}
 	trunk.SetEnd()
 	return trunk
@@ -97,18 +99,17 @@ func (b *Branch) Add(t BranchType) *Branch {
 	// pick branch point
 	dist := b.Length
 	if t == MidBranch {
-		dist = b.Length * (0.3 + 0.3*rand.Float64()) //nolint:gosec // not crypto.
+		dist = b.Length * (0.3 + 0.3*b.Rand.Float64())
 	}
 	branchPoint := Point{
 		X: b.Start.X + dist*math.Cos(b.Angle),
 		Y: b.Start.Y - dist*math.Sin(b.Angle),
 	}
 	// new branch parameters
-	newLength := b.Length * (0.4 + 0.5*rand.Float64()) //nolint:gosec // not crypto.
-	newThickness := b.Thickness * 0.7
+	newLength := b.Length * (0.4 + 0.5*b.Rand.Float64())
 	// calculate branch angle based on type
 	var newAngle float64
-	wiggle := (rand.Float64() - 0.5) * (math.Pi / 20) //nolint:gosec // not crypto.
+	wiggle := (b.Rand.Float64() - 0.5) * (math.Pi / 20)
 	switch t {
 	case LeftBranch:
 		newAngle = b.Angle - (math.Pi / 6)
@@ -117,7 +118,7 @@ func (b *Branch) Add(t BranchType) *Branch {
 	case MidBranch:
 		// pick side randomly
 		sign := 1.0
-		if rand.Float64() < 0.5 { //nolint:gosec // not crypto.
+		if b.Rand.Float64() < 0.5 {
 			sign = -1.0
 		}
 		newAngle = b.Angle + sign*(math.Pi/8)
@@ -125,12 +126,12 @@ func (b *Branch) Add(t BranchType) *Branch {
 		panic("unknown branch type")
 	}
 	newAngle += wiggle
-	// newAngle := b.Angle + (rand.Float64()*0.5+0.2)*(1-2*rand.Float64()) //nolint:gosec // not crypto.
+	// newAngle := b.Angle + (b.Rand.Float64()*0.5+0.2)*(1-2*b.Rand.Float64())
 	newB := &Branch{
-		Start:     branchPoint,
-		Angle:     newAngle,
-		Length:    newLength,
-		Thickness: newThickness,
+		Start:  branchPoint,
+		Angle:  newAngle,
+		Length: newLength,
+		Rand:   b.Rand,
 	}
 	newB.SetEnd()
 	return newB
