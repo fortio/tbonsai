@@ -3,7 +3,6 @@ package ptree
 import (
 	"image"
 	"image/color"
-	"math/rand/v2"
 
 	"fortio.org/terminal/ansipixels"
 	"fortio.org/terminal/ansipixels/tcolor"
@@ -14,7 +13,7 @@ func DrawTree(img *image.NRGBA, c *Canvas) {
 	for _, b := range c.Branches {
 		rgb := c.MonoColor
 		if rgb == notset {
-			c := tcolor.Oklchf(.7, .7, rand.Float64()) //nolint:gosec // not crypto.
+			c := tcolor.Oklchf(.7, .7, c.Rand.Float64())
 			ct, data := c.Decode()
 			rgb = tcolor.ToRGB(ct, data)
 		}

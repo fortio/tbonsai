@@ -15,6 +15,7 @@ import (
 	"fortio.org/cli"
 	"fortio.org/duration"
 	"fortio.org/log"
+	"fortio.org/rand"
 	"fortio.org/tbonsai/ptree"
 	"fortio.org/terminal/ansipixels"
 	"fortio.org/terminal/ansipixels/tcolor"
@@ -31,6 +32,7 @@ type State struct {
 	auto      time.Duration
 	last      time.Time
 	monoColor tcolor.RGBColor
+	rand      rand.Rand
 }
 
 func Main() int {
@@ -44,6 +46,7 @@ func Main() int {
 	fMonoColor := flag.String("color", "",
 		"If set to a `hex color` like FD9103, use that single color for the tree instead of random colors")
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
+	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -57,11 +60,13 @@ func Main() int {
 		log.Infof("Writing cpu profile to %s", *fCpuprofile)
 		defer pprof.StopCPUProfile()
 	}
+	rnd := rand.New(*fSeed)
 	ap := ansipixels.NewAnsiPixels(*fFPS)
 	st := &State{
 		ap:   ap,
 		pot:  *fPot,
 		auto: *fAuto,
+		rand: rnd,
 	}
 	if *fMonoColor != "" {
 		c, err := tcolor.FromString(*fMonoColor)
@@ -159,6 +164,7 @@ func (st *State) Pot() {
 	st.ap.WriteAtStr(cx-radius+5, h-1, "●")
 	st.ap.WriteAtStr(cx+radius-5, h-1, "●") // or ⚪ at -7
 	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
+	// st.TreeBase(st.rand) // coming in subsequent PR/commit.
 }
 
 func (st *State) DrawTree() {
@@ -166,7 +172,7 @@ func (st *State) DrawTree() {
 	if !st.pot {
 		dy = 0
 	}
-	c := ptree.NewCanvas(st.ap.W, 2*st.ap.H-dy)
+	c := ptree.NewCanvas(st.rand, st.ap.W, 2*st.ap.H-dy)
 	c.MonoColor = st.monoColor
 	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
 	ptree.DrawTree(img, c)
