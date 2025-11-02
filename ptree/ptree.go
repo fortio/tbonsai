@@ -126,7 +126,7 @@ func (b *Branch) Add(t BranchType) *Branch {
 		panic("unknown branch type")
 	}
 	newAngle += wiggle
-	// newAngle := b.Angle + (c.Rand.Float64()*0.5+0.2)*(1-2*c.Rand.Float64())
+	// newAngle := b.Angle + (b.Rand.Float64()*0.5+0.2)*(1-2*b.Rand.Float64())
 	newB := &Branch{
 		Start:  branchPoint,
 		Angle:  newAngle,
