@@ -27,31 +27,37 @@ type Branch struct {
 	StartWidth float64
 	EndWidth   float64
 	Rand       rand.Rand
+	IsTrunk    bool // If true, draw bottom flat
 }
 
 func NewCanvas(rng rand.Rand, width, height int) *Canvas {
+	return NewCanvasWithOptions(rng, width, height, 4, 8.0, 40.0)
+}
+
+func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidth, trunkHeightPct float64) *Canvas {
 	c := &Canvas{
 		Width:    width,
 		Height:   height,
 		Branches: make([]*Branch, 0, 20),
 		Rand:     rng,
 	}
-	trunk := c.Trunk()
+	trunk := c.Trunk(trunkWidth, trunkHeightPct)
 	c.Branches = append(c.Branches, trunk)
 	// Generate branches breadth-first
-	c.GenerateBranchesBFS(trunk, 4)
+	c.GenerateBranchesBFS(trunk, depth)
 	return c
 }
 
-func (c *Canvas) Trunk() *Branch {
+func (c *Canvas) Trunk(trunkWidth, trunkHeightPct float64) *Branch {
 	// Create the trunk of the tree
 	trunk := &Branch{
 		Start:      Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
 		Angle:      math.Pi/2 + .2*(c.Rand.Float64()-0.5),
-		Length:     float64(c.Height) * 0.4,
-		StartWidth: 8 + c.Rand.Float64(),
-		EndWidth:   6 + c.Rand.Float64(),
+		Length:     float64(c.Height) * (trunkHeightPct / 100.0),
+		StartWidth: trunkWidth + 0.2*trunkWidth*c.Rand.Float64(),
+		EndWidth:   trunkWidth*0.75 + 0.2*trunkWidth*c.Rand.Float64(),
 		Rand:       c.Rand,
+		IsTrunk:    true,
 	}
 	trunk.SetEnd()
 	return trunk

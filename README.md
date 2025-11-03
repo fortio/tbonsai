@@ -8,18 +8,18 @@
 
 Ansipixels based reinterpretation of cbonsai (without looking at that program's source)
 
-WIP - current state (with optional -pot on):
+Current state (with optional `-pot` and `-lines` only and random colors):
 
-![Screenshot](example.png)
+![Terminal Screenshot](example.png)
 
-Which is progress from earlier:
-
+You can also save high resolution images, for instance
 ```
-            ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
-            ╲                                                     ╱
-             ╲▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁╱
-                  ⚪                                       ⚪
+tbonsai -color F3A005 -trunk-width 80 -depth 7 -seed 42 -trunk-height 35 -save out80_7_35_mono.png
 ```
+
+Produces
+
+![High Res Image](out80_7_35_mono.png)
 
 ## Install
 You can get the binary from [releases](https://github.com/fortio/tbonsai/releases)
