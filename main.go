@@ -7,6 +7,7 @@ import (
 	"flag"
 	"image"
 	"image/draw"
+	"image/png"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -26,13 +27,43 @@ func main() {
 }
 
 type State struct {
-	ap        *ansipixels.AnsiPixels
-	pot       bool
-	tree      bool
-	auto      time.Duration
-	last      time.Time
-	monoColor tcolor.RGBColor
-	rand      rand.Rand
+	ap             *ansipixels.AnsiPixels
+	pot            bool
+	tree           bool
+	auto           time.Duration
+	last           time.Time
+	monoColor      tcolor.RGBColor
+	rand           rand.Rand
+	lines          bool
+	depth          int
+	trunkWidth     float64
+	trunkHeightPct float64
+}
+
+func SavePNG(filename string, img image.Image) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return png.Encode(f, img)
+}
+
+func PNGMode(st *State, filename string, width, height int) int {
+	// Save a single generated tree as a PNG image and exit
+	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct)
+	c.MonoColor = st.monoColor
+	var img draw.Image
+	if st.lines {
+		img = image.NewNRGBA(image.Rect(0, 0, width, height))
+	} else {
+		img = image.NewRGBA(image.Rect(0, 0, width, height))
+	}
+	ptree.DrawTree(img, c, st.lines)
+	if err := SavePNG(filename, img); err != nil {
+		return log.FErrf("failed to save PNG: %v", err)
+	}
+	return 0
 }
 
 func Main() int {
@@ -47,6 +78,13 @@ func Main() int {
 		"If set to a `hex color` like FD9103, use that single color for the tree instead of random colors")
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
 	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
+	fLines := flag.Bool("lines", false, "Use simple line drawing instead of polygon mode (default is polygon)")
+	fSave := flag.String("save", "", "If set to a `file name`, saves one generated tree as a PNG image to that file and exits")
+	fWidth := flag.Int("width", 1280, "Width of the generated tree image when saving to PNG")
+	fHeight := flag.Int("height", 720, "Height of the generated tree image when saving to PNG")
+	fDepth := flag.Int("depth", 4, "Tree depth (number of branch levels)")
+	fTrunkWidth := flag.Float64("trunk-width", 8.0, "Starting width of the trunk")
+	fTrunkHeight := flag.Float64("trunk-height", 40.0, "Trunk height as `percentage` of available height")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -63,10 +101,14 @@ func Main() int {
 	rnd := rand.New(*fSeed)
 	ap := ansipixels.NewAnsiPixels(*fFPS)
 	st := &State{
-		ap:   ap,
-		pot:  *fPot,
-		auto: *fAuto,
-		rand: rnd,
+		ap:             ap,
+		pot:            *fPot,
+		auto:           *fAuto,
+		rand:           rnd,
+		lines:          *fLines,
+		depth:          *fDepth,
+		trunkWidth:     *fTrunkWidth,
+		trunkHeightPct: *fTrunkHeight,
 	}
 	if *fMonoColor != "" {
 		c, err := tcolor.FromString(*fMonoColor)
@@ -77,6 +119,9 @@ func Main() int {
 		st.monoColor = tcolor.ToRGB(ct, data)
 	}
 	ap.TrueColor = *fTrueColor
+	if *fSave != "" {
+		return PNGMode(st, *fSave, *fWidth, *fHeight)
+	}
 	if err := ap.Open(); err != nil {
 		return 1 // error already logged
 	}
@@ -164,24 +209,36 @@ func (st *State) Pot() {
 	st.ap.WriteAtStr(cx-radius+5, h-1, "●")
 	st.ap.WriteAtStr(cx+radius-5, h-1, "●") // or ⚪ at -7
 	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
-	// st.TreeBase(st.rand) // coming in subsequent PR/commit.
+	if !st.tree {
+		st.TreeBase(st.rand) // alternative tree base when not drawing branches as lines/polygons but unicode blocks instead.
+	}
 }
 
 func (st *State) DrawTree() {
-	dy := 6
-	if !st.pot {
-		dy = 0
+	dy := 0
+	if st.pot {
+		dy = 6
 	}
-	c := ptree.NewCanvas(st.rand, st.ap.W, 2*st.ap.H-dy)
+	height := 2*st.ap.H - dy
+	c := ptree.NewCanvasWithOptions(st.rand, st.ap.W, height, st.depth, st.trunkWidth, st.trunkHeightPct)
 	c.MonoColor = st.monoColor
-	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
-	ptree.DrawTree(img, c)
-	nimg := image.NewRGBA(img.Bounds())
-	draw.Draw(nimg, img.Bounds(), img, image.Point{}, draw.Src)
+
+	var showImg *image.RGBA
+	if st.lines {
+		nrgba := image.NewNRGBA(image.Rect(0, 0, st.ap.W, height))
+		ptree.DrawTree(nrgba, c, true)
+		// Convert NRGBA to RGBA for display
+		showImg = image.NewRGBA(nrgba.Bounds())
+		draw.Draw(showImg, nrgba.Bounds(), nrgba, image.Point{}, draw.Src)
+	} else {
+		showImg = image.NewRGBA(image.Rect(0, 0, st.ap.W, height))
+		ptree.DrawTree(showImg, c, false)
+	}
+
 	st.ap.StartSyncMode()
 	st.ap.ClearScreen()
 	st.Pot()
-	_ = st.ap.ShowScaledImage(nimg)
+	_ = st.ap.ShowScaledImage(showImg)
 	st.ap.EndSyncMode()
 	st.last = time.Now()
 }
