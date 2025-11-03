@@ -49,13 +49,12 @@ func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidth, t
 }
 
 func (c *Canvas) Trunk(trunkWidth, trunkHeightPct float64) *Branch {
-	// Create the trunk of the tree
 	trunk := &Branch{
 		Start:      Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
 		Angle:      math.Pi/2 + .2*(c.Rand.Float64()-0.5),
-		Length:     float64(c.Height) * (trunkHeightPct / 100.0),
-		StartWidth: trunkWidth + 0.2*trunkWidth*c.Rand.Float64(),
-		EndWidth:   trunkWidth*0.75 + 0.2*trunkWidth*c.Rand.Float64(),
+		Length:     float64(c.Height) * trunkHeightPct / 100.0,
+		StartWidth: trunkWidth * (1 + 0.2*c.Rand.Float64()),
+		EndWidth:   trunkWidth * (0.75 + 0.2*c.Rand.Float64()),
 		Rand:       c.Rand,
 		IsTrunk:    true,
 	}
@@ -154,8 +153,7 @@ func (c *Canvas) GenerateBranchesBFS(root *Branch, maxDepth int) {
 
 // Add a branch.
 func (b *Branch) Add(t BranchType) *Branch {
-	if b == nil || b.Length < 1 {
-		// parent non existent or too small, skip
+	if b.Length < 1 {
 		return nil
 	}
 	// Pick branch point along parent branch
@@ -164,47 +162,34 @@ func (b *Branch) Add(t BranchType) *Branch {
 		dist = b.Length * (0.3 + 0.3*b.Rand.Float64()) // Random point along branch for mid
 	}
 	dirX, dirY := b.Direction()
-	branchPoint := Point{
-		X: b.Start.X + dist*dirX,
-		Y: b.Start.Y + dist*dirY,
-	}
-	// Calculate new branch parameters
-	newLength := b.Length * (0.4 + 0.5*b.Rand.Float64())
-	newAngle := b.calculateChildAngle(t)
-	startWidth := b.EndWidth * (0.6 + 0.1*b.Rand.Float64())
-	endWidth := startWidth * (0.7 + 0.1*b.Rand.Float64())
 	newB := &Branch{
-		Start:      branchPoint,
-		Angle:      newAngle,
-		Length:     newLength,
-		StartWidth: startWidth,
-		EndWidth:   endWidth,
+		Start:      Point{X: b.Start.X + dist*dirX, Y: b.Start.Y + dist*dirY},
+		Angle:      b.calculateChildAngle(t),
+		Length:     b.Length * (0.4 + 0.5*b.Rand.Float64()),
+		StartWidth: b.EndWidth * (0.6 + 0.1*b.Rand.Float64()),
 		Rand:       b.Rand,
 	}
+	newB.EndWidth = newB.StartWidth * (0.7 + 0.1*b.Rand.Float64())
 	// Adjust start point for terminal branches to make edges contiguous
-	if t == LeftBranch || t == RightBranch {
+	if t != MidBranch {
 		newB.AdjustStartForParent(b, t)
 	}
 	newB.SetEnd()
 	return newB
 }
 
-// calculateChildAngle computes the angle for a child branch based on branch type.
 func (b *Branch) calculateChildAngle(t BranchType) float64 {
-	wiggle := (b.Rand.Float64() - 0.5) * (math.Pi / 20)
+	wiggle := (b.Rand.Float64() - 0.5) * math.Pi / 20
 	switch t {
 	case LeftBranch:
-		return b.Angle - (math.Pi / 6) + wiggle
+		return b.Angle - math.Pi/6 + wiggle
 	case RightBranch:
-		return b.Angle + (math.Pi / 6) + wiggle
-	case MidBranch:
-		// Pick side randomly
+		return b.Angle + math.Pi/6 + wiggle
+	default: // MidBranch
 		sign := 1.0
 		if b.Rand.Float64() < 0.5 {
 			sign = -1.0
 		}
-		return b.Angle + sign*(math.Pi/8) + wiggle
-	default:
-		panic("unknown branch type")
+		return b.Angle + sign*math.Pi/8 + wiggle
 	}
 }

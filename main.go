@@ -215,24 +215,26 @@ func (st *State) Pot() {
 }
 
 func (st *State) DrawTree() {
-	dy := 6
-	if !st.pot {
-		dy = 0
+	dy := 0
+	if st.pot {
+		dy = 6
 	}
-	c := ptree.NewCanvasWithOptions(st.rand, st.ap.W, 2*st.ap.H-dy, st.depth, st.trunkWidth, st.trunkHeightPct)
+	height := 2*st.ap.H - dy
+	c := ptree.NewCanvasWithOptions(st.rand, st.ap.W, height, st.depth, st.trunkWidth, st.trunkHeightPct)
 	c.MonoColor = st.monoColor
-	var img draw.Image
+
 	var showImg *image.RGBA
 	if st.lines {
-		img = image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
-		ptree.DrawTree(img, c, st.lines)
+		nrgba := image.NewNRGBA(image.Rect(0, 0, st.ap.W, height))
+		ptree.DrawTree(nrgba, c, true)
 		// Convert NRGBA to RGBA for display
-		showImg = image.NewRGBA(img.Bounds())
-		draw.Draw(showImg, img.Bounds(), img, image.Point{}, draw.Src)
+		showImg = image.NewRGBA(nrgba.Bounds())
+		draw.Draw(showImg, nrgba.Bounds(), nrgba, image.Point{}, draw.Src)
 	} else {
-		showImg = image.NewRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
-		ptree.DrawTree(showImg, c, st.lines)
+		showImg = image.NewRGBA(image.Rect(0, 0, st.ap.W, height))
+		ptree.DrawTree(showImg, c, false)
 	}
+
 	st.ap.StartSyncMode()
 	st.ap.ClearScreen()
 	st.Pot()

@@ -45,30 +45,22 @@ func drawBranchPolygon(img *image.RGBA, b *Branch, rgb tcolor.RGBColor) {
 		return
 	}
 
-	// Calculate the 4 vertices of the trapezoid
-	// Start point offsets (full width / 2)
 	startHalfWidth := b.StartWidth / 2
-	// For trunk, bottom should be flat (horizontal)
+	endHalfWidth := b.EndWidth / 2
+
+	// Calculate the 4 vertices of the trapezoid
 	var s1x, s1y, s2x, s2y float64
 	if b.IsTrunk {
-		// Flat bottom: perpendicular to vertical (horizontal)
-		s1x = b.Start.X + startHalfWidth
-		s1y = b.Start.Y
-		s2x = b.Start.X - startHalfWidth
-		s2y = b.Start.Y
+		// Flat bottom for trunk
+		s1x, s1y = b.Start.X+startHalfWidth, b.Start.Y
+		s2x, s2y = b.Start.X-startHalfWidth, b.Start.Y
 	} else {
-		s1x = b.Start.X + perpX*startHalfWidth
-		s1y = b.Start.Y + perpY*startHalfWidth
-		s2x = b.Start.X - perpX*startHalfWidth
-		s2y = b.Start.Y - perpY*startHalfWidth
+		s1x, s1y = b.Start.X+perpX*startHalfWidth, b.Start.Y+perpY*startHalfWidth
+		s2x, s2y = b.Start.X-perpX*startHalfWidth, b.Start.Y-perpY*startHalfWidth
 	}
 
-	// End point offsets (full width / 2)
-	endHalfWidth := b.EndWidth / 2
-	e1x := b.End.X + perpX*endHalfWidth
-	e1y := b.End.Y + perpY*endHalfWidth
-	e2x := b.End.X - perpX*endHalfWidth
-	e2y := b.End.Y - perpY*endHalfWidth
+	e1x, e1y := b.End.X+perpX*endHalfWidth, b.End.Y+perpY*endHalfWidth
+	e2x, e2y := b.End.X-perpX*endHalfWidth, b.End.Y-perpY*endHalfWidth
 
 	// Create rasterizer and draw the trapezoid
 	rast := vector.NewRasterizer(img.Bounds().Dx(), img.Bounds().Dy())
