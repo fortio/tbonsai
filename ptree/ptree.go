@@ -38,8 +38,8 @@ func NewCanvas(rng rand.Rand, width, height int) *Canvas {
 	}
 	trunk := c.Trunk()
 	c.Branches = append(c.Branches, trunk)
-	// Generate branches recursively
-	c.GenerateBranches(trunk, 4)
+	// Generate branches breadth-first
+	c.GenerateBranchesBFS(trunk, 4)
 	return c
 }
 
@@ -49,8 +49,8 @@ func (c *Canvas) Trunk() *Branch {
 		Start:      Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
 		Angle:      math.Pi/2 + .2*(c.Rand.Float64()-0.5),
 		Length:     float64(c.Height) * 0.4,
-		StartWidth: 6 + c.Rand.Float64(),
-		EndWidth:   5 + c.Rand.Float64(),
+		StartWidth: 8 + c.Rand.Float64(),
+		EndWidth:   6 + c.Rand.Float64(),
 		Rand:       c.Rand,
 	}
 	trunk.SetEnd()
@@ -58,39 +58,42 @@ func (c *Canvas) Trunk() *Branch {
 }
 
 func (b *Branch) SetEnd() {
-	b.End = Point{
-		X: b.Start.X + b.Length*math.Cos(b.Angle),
-		Y: b.Start.Y - b.Length*math.Sin(b.Angle),
-	}
+	b.End.X = b.Start.X + b.Length*math.Cos(b.Angle)
+	b.End.Y = b.Start.Y - b.Length*math.Sin(b.Angle)
+}
+
+// Direction returns the normalized direction vector of the branch.
+func (b *Branch) Direction() (dirX, dirY float64) {
+	return math.Cos(b.Angle), -math.Sin(b.Angle)
 }
 
 // Perpendicular returns the normalized perpendicular vector to the branch direction.
 func (b *Branch) Perpendicular() (perpX, perpY float64) {
-	dx := b.End.X - b.Start.X
-	dy := b.End.Y - b.Start.Y
-	length := math.Sqrt(dx*dx + dy*dy)
-	if length == 0 {
-		return 0, 0
-	}
-	return -dy / length, dx / length
+	dirX, dirY := b.Direction()
+	return -dirY, dirX
 }
 
-// AdjustStartForParent adjusts the child branch start point so the trapezoid edges
-// align perfectly with the parent branch at the connection point.
+// AdjustStartForParent adjusts the child branch start point to overlap with the
+// parent branch end, eliminating gaps at the connection point.
 func (b *Branch) AdjustStartForParent(parent *Branch, branchType BranchType) {
-	parentPerpX, parentPerpY := parent.Perpendicular()
-	if parentPerpX == 0 && parentPerpY == 0 {
-		return
-	}
+	// Move the start point back along the parent direction to create slight overlap
+	// This ensures the angled child branch overlaps with the parent end without showing flat top
+	parentDirX, parentDirY := parent.Direction()
+	overlapDist := b.StartWidth * 0.6
+	b.Start.X = parent.End.X - parentDirX*overlapDist
+	b.Start.Y = parent.End.Y - parentDirY*overlapDist
+
+	// Apply perpendicular offset to align edges
 	// For LeftBranch: align left edges (move child right)
 	// For RightBranch: align right edges (move child left)
 	sign := 1.0
 	if branchType == RightBranch {
 		sign = -1.0
 	}
+	parentPerpX, parentPerpY := parent.Perpendicular()
 	widthDiff := sign * (parent.EndWidth - b.StartWidth) / 2
-	b.Start.X = parent.End.X + parentPerpX*widthDiff
-	b.Start.Y = parent.End.Y + parentPerpY*widthDiff
+	b.Start.X += parentPerpX * widthDiff
+	b.Start.Y += parentPerpY * widthDiff
 }
 
 type BranchType int
@@ -101,26 +104,46 @@ const (
 	RightBranch
 )
 
-func (c *Canvas) GenerateBranches(cur *Branch, depth int) {
-	if depth <= 0 {
-		return
+// GenerateBranchesBFS generates branches in breadth-first order so branches
+// at the same depth level are added together.
+func (c *Canvas) GenerateBranchesBFS(root *Branch, maxDepth int) {
+	type queueItem struct {
+		branch *Branch
+		depth  int
 	}
-	depth--
-	if depth >= 1 {
-		// 1 branch in middle
-		c.AddBranch(cur.Add(MidBranch), depth)
-	}
-	// 2 at the end
-	c.AddBranch(cur.Add(LeftBranch), depth)
-	c.AddBranch(cur.Add(RightBranch), depth)
-}
+	queue := []queueItem{{branch: root, depth: maxDepth}}
 
-func (c *Canvas) AddBranch(b *Branch, depth int) {
-	if b == nil {
-		return
+	for len(queue) > 0 {
+		item := queue[0]
+		queue = queue[1:]
+
+		if item.depth <= 0 {
+			continue
+		}
+		nextDepth := item.depth - 1
+
+		// Generate child branches
+		var children []*Branch
+		// 2 at the end
+		if left := item.branch.Add(LeftBranch); left != nil {
+			children = append(children, left)
+		}
+		if right := item.branch.Add(RightBranch); right != nil {
+			children = append(children, right)
+		}
+		//  + 1 branch in middle except at last level
+		if nextDepth >= 1 {
+			if mid := item.branch.Add(MidBranch); mid != nil {
+				children = append(children, mid)
+			}
+		}
+
+		// Add all children of this branch to Branches slice (same depth together)
+		for _, child := range children {
+			c.Branches = append(c.Branches, child)
+			queue = append(queue, queueItem{branch: child, depth: nextDepth})
+		}
 	}
-	c.Branches = append(c.Branches, b)
-	c.GenerateBranches(b, depth)
 }
 
 // Add a branch.
@@ -129,36 +152,19 @@ func (b *Branch) Add(t BranchType) *Branch {
 		// parent non existent or too small, skip
 		return nil
 	}
-	// pick branch point
-	dist := b.Length
+	// Pick branch point along parent branch
+	dist := b.Length // End of branch for left/right
 	if t == MidBranch {
-		dist = b.Length * (0.3 + 0.3*b.Rand.Float64())
+		dist = b.Length * (0.3 + 0.3*b.Rand.Float64()) // Random point along branch for mid
 	}
+	dirX, dirY := b.Direction()
 	branchPoint := Point{
-		X: b.Start.X + dist*math.Cos(b.Angle),
-		Y: b.Start.Y - dist*math.Sin(b.Angle),
+		X: b.Start.X + dist*dirX,
+		Y: b.Start.Y + dist*dirY,
 	}
-	// new branch parameters
+	// Calculate new branch parameters
 	newLength := b.Length * (0.4 + 0.5*b.Rand.Float64())
-	// calculate branch angle based on type
-	var newAngle float64
-	wiggle := (b.Rand.Float64() - 0.5) * (math.Pi / 20)
-	switch t {
-	case LeftBranch:
-		newAngle = b.Angle - (math.Pi / 6)
-	case RightBranch:
-		newAngle = b.Angle + (math.Pi / 6)
-	case MidBranch:
-		// pick side randomly
-		sign := 1.0
-		if b.Rand.Float64() < 0.5 {
-			sign = -1.0
-		}
-		newAngle = b.Angle + sign*(math.Pi/8)
-	default:
-		panic("unknown branch type")
-	}
-	newAngle += wiggle
+	newAngle := b.calculateChildAngle(t)
 	startWidth := b.EndWidth * (0.6 + 0.1*b.Rand.Float64())
 	endWidth := startWidth * (0.7 + 0.1*b.Rand.Float64())
 	newB := &Branch{
@@ -175,4 +181,24 @@ func (b *Branch) Add(t BranchType) *Branch {
 	}
 	newB.SetEnd()
 	return newB
+}
+
+// calculateChildAngle computes the angle for a child branch based on branch type.
+func (b *Branch) calculateChildAngle(t BranchType) float64 {
+	wiggle := (b.Rand.Float64() - 0.5) * (math.Pi / 20)
+	switch t {
+	case LeftBranch:
+		return b.Angle - (math.Pi / 6) + wiggle
+	case RightBranch:
+		return b.Angle + (math.Pi / 6) + wiggle
+	case MidBranch:
+		// Pick side randomly
+		sign := 1.0
+		if b.Rand.Float64() < 0.5 {
+			sign = -1.0
+		}
+		return b.Angle + sign*(math.Pi/8) + wiggle
+	default:
+		panic("unknown branch type")
+	}
 }

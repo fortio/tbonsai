@@ -7,6 +7,7 @@ import (
 	"flag"
 	"image"
 	"image/draw"
+	"image/png"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -36,6 +37,27 @@ type State struct {
 	lines     bool
 }
 
+func SavePNG(filename string, img image.Image) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return png.Encode(f, img)
+}
+
+func PNGMode(st *State, filename string, width, height int) int {
+	// Save a single generated tree as a PNG image and exit
+	c := ptree.NewCanvas(st.rand, width, height)
+	c.MonoColor = st.monoColor
+	img := image.NewNRGBA(image.Rect(0, 0, width, height))
+	ptree.DrawTree(img, c, st.lines)
+	if err := SavePNG(filename, img); err != nil {
+		return log.FErrf("failed to save PNG: %v", err)
+	}
+	return 0
+}
+
 func Main() int {
 	truecolorDefault := ansipixels.DetectColorMode().TrueColor
 	fTrueColor := flag.Bool("truecolor", truecolorDefault,
@@ -49,6 +71,9 @@ func Main() int {
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
 	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
 	fLines := flag.Bool("lines", false, "Use simple line drawing instead of polygon mode (default is polygon)")
+	fSave := flag.String("save", "", "If set to a `file name`, saves one generated tree as a PNG image to that file and exits")
+	fWidth := flag.Int("width", 1280, "Width of the generated tree image when saving to PNG")
+	fHeight := flag.Int("height", 720, "Height of the generated tree image when saving to PNG")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -80,6 +105,9 @@ func Main() int {
 		st.monoColor = tcolor.ToRGB(ct, data)
 	}
 	ap.TrueColor = *fTrueColor
+	if *fSave != "" {
+		return PNGMode(st, *fSave, *fWidth, *fHeight)
+	}
 	if err := ap.Open(); err != nil {
 		return 1 // error already logged
 	}
