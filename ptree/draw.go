@@ -10,7 +10,7 @@ import (
 	"golang.org/x/image/vector"
 )
 
-func DrawTree(img *image.NRGBA, c *Canvas, useLines bool) {
+func DrawTree(img draw.Image, c *Canvas, useLines bool) {
 	var notset tcolor.RGBColor
 	for _, b := range c.Branches {
 		rgb := c.MonoColor
@@ -20,9 +20,9 @@ func DrawTree(img *image.NRGBA, c *Canvas, useLines bool) {
 			rgb = tcolor.ToRGB(ct, data)
 		}
 		if useLines {
-			drawBranchLine(img, b, rgb)
+			drawBranchLine(img.(*image.NRGBA), b, rgb)
 		} else {
-			drawBranchPolygon(img, b, rgb)
+			drawBranchPolygon(img.(*image.RGBA), b, rgb)
 		}
 	}
 }
@@ -35,7 +35,11 @@ func toNRGBA(rgb tcolor.RGBColor) color.NRGBA {
 	return color.NRGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255}
 }
 
-func drawBranchPolygon(img *image.NRGBA, b *Branch, rgb tcolor.RGBColor) {
+func toRGBA(rgb tcolor.RGBColor) color.RGBA {
+	return color.RGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255}
+}
+
+func drawBranchPolygon(img *image.RGBA, b *Branch, rgb tcolor.RGBColor) {
 	perpX, perpY := b.Perpendicular()
 	if perpX == 0 && perpY == 0 {
 		return
@@ -68,5 +72,5 @@ func drawBranchPolygon(img *image.NRGBA, b *Branch, rgb tcolor.RGBColor) {
 	rast.ClosePath()
 
 	// Rasterize to the image
-	rast.Draw(img, img.Bounds(), image.NewUniform(toNRGBA(rgb)), image.Point{})
+	rast.Draw(img, img.Bounds(), image.NewUniform(toRGBA(rgb)), image.Point{})
 }

@@ -50,7 +50,12 @@ func PNGMode(st *State, filename string, width, height int) int {
 	// Save a single generated tree as a PNG image and exit
 	c := ptree.NewCanvas(st.rand, width, height)
 	c.MonoColor = st.monoColor
-	img := image.NewNRGBA(image.Rect(0, 0, width, height))
+	var img draw.Image
+	if st.lines {
+		img = image.NewNRGBA(image.Rect(0, 0, width, height))
+	} else {
+		img = image.NewRGBA(image.Rect(0, 0, width, height))
+	}
 	ptree.DrawTree(img, c, st.lines)
 	if err := SavePNG(filename, img); err != nil {
 		return log.FErrf("failed to save PNG: %v", err)
@@ -207,14 +212,22 @@ func (st *State) DrawTree() {
 	}
 	c := ptree.NewCanvas(st.rand, st.ap.W, 2*st.ap.H-dy)
 	c.MonoColor = st.monoColor
-	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
-	ptree.DrawTree(img, c, st.lines)
-	nimg := image.NewRGBA(img.Bounds())
-	draw.Draw(nimg, img.Bounds(), img, image.Point{}, draw.Src)
+	var img draw.Image
+	var showImg *image.RGBA
+	if st.lines {
+		img = image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
+		ptree.DrawTree(img, c, st.lines)
+		// Convert NRGBA to RGBA for display
+		showImg = image.NewRGBA(img.Bounds())
+		draw.Draw(showImg, img.Bounds(), img, image.Point{}, draw.Src)
+	} else {
+		showImg = image.NewRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
+		ptree.DrawTree(showImg, c, st.lines)
+	}
 	st.ap.StartSyncMode()
 	st.ap.ClearScreen()
 	st.Pot()
-	_ = st.ap.ShowScaledImage(nimg)
+	_ = st.ap.ShowScaledImage(showImg)
 	st.ap.EndSyncMode()
 	st.last = time.Now()
 }
