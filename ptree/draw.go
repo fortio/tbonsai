@@ -3,12 +3,14 @@ package ptree
 import (
 	"image"
 	"image/color"
+	"image/draw"
 
 	"fortio.org/terminal/ansipixels"
 	"fortio.org/terminal/ansipixels/tcolor"
+	"golang.org/x/image/vector"
 )
 
-func DrawTree(img *image.NRGBA, c *Canvas) {
+func DrawTree(img *image.NRGBA, c *Canvas, useLines bool) {
 	var notset tcolor.RGBColor
 	for _, b := range c.Branches {
 		rgb := c.MonoColor
@@ -17,10 +19,54 @@ func DrawTree(img *image.NRGBA, c *Canvas) {
 			ct, data := c.Decode()
 			rgb = tcolor.ToRGB(ct, data)
 		}
-		drawBranch(img, b, rgb)
+		if useLines {
+			drawBranchLine(img, b, rgb)
+		} else {
+			drawBranchPolygon(img, b, rgb)
+		}
 	}
 }
 
-func drawBranch(img *image.NRGBA, b *Branch, rgb tcolor.RGBColor) {
-	ansipixels.DrawAALine(img, b.Start.X, b.Start.Y, b.End.X, b.End.Y, color.NRGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255})
+func drawBranchLine(img *image.NRGBA, b *Branch, rgb tcolor.RGBColor) {
+	ansipixels.DrawAALine(img, b.Start.X, b.Start.Y, b.End.X, b.End.Y, toNRGBA(rgb))
+}
+
+func toNRGBA(rgb tcolor.RGBColor) color.NRGBA {
+	return color.NRGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255}
+}
+
+func drawBranchPolygon(img *image.NRGBA, b *Branch, rgb tcolor.RGBColor) {
+	perpX, perpY := b.Perpendicular()
+	if perpX == 0 && perpY == 0 {
+		return
+	}
+
+	// Calculate the 4 vertices of the trapezoid
+	// Start point offsets (full width / 2)
+	startHalfWidth := b.StartWidth / 2
+	s1x := b.Start.X + perpX*startHalfWidth
+	s1y := b.Start.Y + perpY*startHalfWidth
+	s2x := b.Start.X - perpX*startHalfWidth
+	s2y := b.Start.Y - perpY*startHalfWidth
+
+	// End point offsets (full width / 2)
+	endHalfWidth := b.EndWidth / 2
+	e1x := b.End.X + perpX*endHalfWidth
+	e1y := b.End.Y + perpY*endHalfWidth
+	e2x := b.End.X - perpX*endHalfWidth
+	e2y := b.End.Y - perpY*endHalfWidth
+
+	// Create rasterizer and draw the trapezoid
+	rast := vector.NewRasterizer(img.Bounds().Dx(), img.Bounds().Dy())
+	rast.DrawOp = draw.Over
+
+	// Move to first vertex and draw the polygon
+	rast.MoveTo(float32(s1x), float32(s1y))
+	rast.LineTo(float32(e1x), float32(e1y))
+	rast.LineTo(float32(e2x), float32(e2y))
+	rast.LineTo(float32(s2x), float32(s2y))
+	rast.ClosePath()
+
+	// Rasterize to the image
+	rast.Draw(img, img.Bounds(), image.NewUniform(toNRGBA(rgb)), image.Point{})
 }

@@ -33,6 +33,7 @@ type State struct {
 	last      time.Time
 	monoColor tcolor.RGBColor
 	rand      rand.Rand
+	lines     bool
 }
 
 func Main() int {
@@ -47,6 +48,7 @@ func Main() int {
 		"If set to a `hex color` like FD9103, use that single color for the tree instead of random colors")
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
 	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
+	fLines := flag.Bool("lines", false, "Use simple line drawing instead of polygon mode (default is polygon)")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -63,10 +65,11 @@ func Main() int {
 	rnd := rand.New(*fSeed)
 	ap := ansipixels.NewAnsiPixels(*fFPS)
 	st := &State{
-		ap:   ap,
-		pot:  *fPot,
-		auto: *fAuto,
-		rand: rnd,
+		ap:    ap,
+		pot:   *fPot,
+		auto:  *fAuto,
+		rand:  rnd,
+		lines: *fLines,
 	}
 	if *fMonoColor != "" {
 		c, err := tcolor.FromString(*fMonoColor)
@@ -177,7 +180,7 @@ func (st *State) DrawTree() {
 	c := ptree.NewCanvas(st.rand, st.ap.W, 2*st.ap.H-dy)
 	c.MonoColor = st.monoColor
 	img := image.NewNRGBA(image.Rect(0, 0, st.ap.W, 2*st.ap.H-dy))
-	ptree.DrawTree(img, c)
+	ptree.DrawTree(img, c, st.lines)
 	nimg := image.NewRGBA(img.Bounds())
 	draw.Draw(nimg, img.Bounds(), img, image.Point{}, draw.Src)
 	st.ap.StartSyncMode()

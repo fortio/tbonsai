@@ -64,6 +64,35 @@ func (b *Branch) SetEnd() {
 	}
 }
 
+// Perpendicular returns the normalized perpendicular vector to the branch direction.
+func (b *Branch) Perpendicular() (perpX, perpY float64) {
+	dx := b.End.X - b.Start.X
+	dy := b.End.Y - b.Start.Y
+	length := math.Sqrt(dx*dx + dy*dy)
+	if length == 0 {
+		return 0, 0
+	}
+	return -dy / length, dx / length
+}
+
+// AdjustStartForParent adjusts the child branch start point so the trapezoid edges
+// align perfectly with the parent branch at the connection point.
+func (b *Branch) AdjustStartForParent(parent *Branch, branchType BranchType) {
+	parentPerpX, parentPerpY := parent.Perpendicular()
+	if parentPerpX == 0 && parentPerpY == 0 {
+		return
+	}
+	// For LeftBranch: align left edges (move child right)
+	// For RightBranch: align right edges (move child left)
+	sign := 1.0
+	if branchType == RightBranch {
+		sign = -1.0
+	}
+	widthDiff := sign * (parent.EndWidth - b.StartWidth) / 2
+	b.Start.X = parent.End.X + parentPerpX*widthDiff
+	b.Start.Y = parent.End.Y + parentPerpY*widthDiff
+}
+
 type BranchType int
 
 const (
@@ -139,6 +168,10 @@ func (b *Branch) Add(t BranchType) *Branch {
 		StartWidth: startWidth,
 		EndWidth:   endWidth,
 		Rand:       b.Rand,
+	}
+	// Adjust start point for terminal branches to make edges contiguous
+	if t == LeftBranch || t == RightBranch {
+		newB.AdjustStartForParent(b, t)
 	}
 	newB.SetEnd()
 	return newB
