@@ -20,11 +20,13 @@ type Point struct {
 }
 
 type Branch struct {
-	Start  Point
-	End    Point
-	Angle  float64
-	Length float64
-	Rand   rand.Rand
+	Start      Point
+	End        Point
+	Angle      float64
+	Length     float64
+	StartWidth float64
+	EndWidth   float64
+	Rand       rand.Rand
 }
 
 func NewCanvas(rng rand.Rand, width, height int) *Canvas {
@@ -44,10 +46,12 @@ func NewCanvas(rng rand.Rand, width, height int) *Canvas {
 func (c *Canvas) Trunk() *Branch {
 	// Create the trunk of the tree
 	trunk := &Branch{
-		Start:  Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
-		Angle:  math.Pi/2 + .2*(c.Rand.Float64()-0.5),
-		Length: float64(c.Height) * 0.4,
-		Rand:   c.Rand,
+		Start:      Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
+		Angle:      math.Pi/2 + .2*(c.Rand.Float64()-0.5),
+		Length:     float64(c.Height) * 0.4,
+		StartWidth: 6 + c.Rand.Float64(),
+		EndWidth:   5 + c.Rand.Float64(),
+		Rand:       c.Rand,
 	}
 	trunk.SetEnd()
 	return trunk
@@ -126,12 +130,15 @@ func (b *Branch) Add(t BranchType) *Branch {
 		panic("unknown branch type")
 	}
 	newAngle += wiggle
-	// newAngle := b.Angle + (b.Rand.Float64()*0.5+0.2)*(1-2*b.Rand.Float64())
+	startWidth := b.EndWidth * (0.6 + 0.1*b.Rand.Float64())
+	endWidth := startWidth * (0.7 + 0.1*b.Rand.Float64())
 	newB := &Branch{
-		Start:  branchPoint,
-		Angle:  newAngle,
-		Length: newLength,
-		Rand:   b.Rand,
+		Start:      branchPoint,
+		Angle:      newAngle,
+		Length:     newLength,
+		StartWidth: startWidth,
+		EndWidth:   endWidth,
+		Rand:       b.Rand,
 	}
 	newB.SetEnd()
 	return newB

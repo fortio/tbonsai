@@ -164,7 +164,9 @@ func (st *State) Pot() {
 	st.ap.WriteAtStr(cx-radius+5, h-1, "●")
 	st.ap.WriteAtStr(cx+radius-5, h-1, "●") // or ⚪ at -7
 	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
-	// st.TreeBase(st.rand) // coming in subsequent PR/commit.
+	if !st.tree {
+		st.TreeBase(st.rand) // alternative tree base when not drawing branches as lines/polygons but unicode blocks instead.
+	}
 }
 
 func (st *State) DrawTree() {
