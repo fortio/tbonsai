@@ -37,7 +37,10 @@ type State struct {
 	tree           bool
 	auto           time.Duration
 	last           time.Time
-	monoColor      tcolor.RGBColor
+	trunkColor     tcolor.RGBColor
+	rainbow        bool
+	leaves         bool
+	leafSize       float64
 	rand           rand.Rand
 	lines          bool
 	depth          int
@@ -108,7 +111,10 @@ func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
 func PNGMode(st *State, filename string, width, height int) int {
 	// Save a single generated tree as a PNG image and exit
 	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
-	c.MonoColor = st.monoColor
+	c.TrunkColor = st.trunkColor
+	c.Rainbow = st.rainbow
+	c.Leaves = st.leaves
+	c.LeafSize = st.leafSize
 	var img draw.Image
 	if st.lines {
 		img = image.NewNRGBA(image.Rect(0, 0, width, height))
@@ -122,6 +128,35 @@ func PNGMode(st *State, filename string, width, height int) int {
 	return 0
 }
 
+func initializeState(ap *ansipixels.AnsiPixels, rnd rand.Rand, pot bool, auto time.Duration,
+	rainbow, leaves bool, leafSize float64, lines bool, depth int, trunkWidth, trunkHeightPct, spread float64,
+	kitty bool, width, height int, trunkColorStr string) (*State, error) { //nolint:gofumpt // long parameter list
+	c, err := tcolor.FromString(trunkColorStr)
+	if err != nil {
+		return nil, err
+	}
+	ct, data := c.Decode()
+	st := &State{
+		ap:             ap,
+		pot:            pot,
+		auto:           auto,
+		rand:           rnd,
+		rainbow:        rainbow,
+		leaves:         leaves,
+		leafSize:       leafSize,
+		lines:          lines,
+		depth:          depth,
+		trunkWidth:     trunkWidth,
+		trunkHeightPct: trunkHeightPct,
+		spread:         spread,
+		kitty:          kitty,
+		width:          width,
+		height:         height,
+		trunkColor:     tcolor.ToRGB(ct, data),
+	}
+	return st, nil
+}
+
 func Main() int {
 	truecolorDefault := ansipixels.DetectColorMode().TrueColor
 	fTrueColor := flag.Bool("truecolor", truecolorDefault,
@@ -130,8 +165,11 @@ func Main() int {
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
 	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
-	fMonoColor := flag.String("color", "",
-		"If set to a `hex color` like FD9103, use that single color for the tree instead of random colors")
+	fTrunkColor := flag.String("color", "654321",
+		"Trunk base color as `hex color` (default: 654321 dark brown). Branches gradually lighten with depth.")
+	fRainbow := flag.Bool("rainbow", false, "Use random colors for each branch instead of depth-based brown gradient")
+	fLeaves := flag.Bool("leaves", false, "Draw leaves at branch endpoints")
+	fLeafSize := flag.Float64("leaf-size", 1.0, "Leaf size multiplier")
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
 	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
 	fLines := flag.Bool("lines", false, "Use simple line drawing instead of polygon mode (default is polygon)")
@@ -139,9 +177,9 @@ func Main() int {
 	fKitty := flag.Bool("kitty", false, "Use Kitty graphics protocol for high-res images (resizable, regeneratable)")
 	fWidth := flag.Int("width", 1280, "Width of the generated tree image when using Kitty mode or saving to PNG")
 	fHeight := flag.Int("height", 720, "Height of the generated tree image when using Kitty mode or saving to PNG")
-	fDepth := flag.Int("depth", 4, "Tree depth (number of branch levels)")
+	fDepth := flag.Int("depth", 6, "Tree depth (number of branch levels)")
 	fTrunkWidth := flag.Float64("trunk-width", 7.0, "Starting width of the trunk as `percentage` of image width")
-	fTrunkHeight := flag.Float64("trunk-height", 40.0, "Trunk height as `percentage` of available height")
+	fTrunkHeight := flag.Float64("trunk-height", 35.0, "Trunk height as `percentage` of available height")
 	fSpread := flag.Float64("spread", 1.0, "Branch angle spread multiplier (< 1.0 narrower, > 1.0 wider)")
 	cli.Main()
 	if *fCpuprofile != "" {
@@ -158,33 +196,16 @@ func Main() int {
 	}
 	rnd := rand.New(*fSeed)
 	ap := ansipixels.NewAnsiPixels(*fFPS)
-	st := &State{
-		ap:             ap,
-		pot:            *fPot,
-		auto:           *fAuto,
-		rand:           rnd,
-		lines:          *fLines,
-		depth:          *fDepth,
-		trunkWidth:     *fTrunkWidth,
-		trunkHeightPct: *fTrunkHeight,
-		spread:         *fSpread,
-		kitty:          *fKitty,
-		width:          *fWidth,
-		height:         *fHeight,
-	}
-	if *fMonoColor != "" {
-		c, err := tcolor.FromString(*fMonoColor)
-		if err != nil {
-			return log.FErrf("can't parse mono-color %q: %v", *fMonoColor, err)
-		}
-		ct, data := c.Decode()
-		st.monoColor = tcolor.ToRGB(ct, data)
+	st, err := initializeState(ap, rnd, *fPot, *fAuto, *fRainbow, *fLeaves, *fLeafSize, *fLines,
+		*fDepth, *fTrunkWidth, *fTrunkHeight, *fSpread, *fKitty, *fWidth, *fHeight, *fTrunkColor)
+	if err != nil {
+		return log.FErrf("initialization failed: %v", err)
 	}
 	ap.TrueColor = *fTrueColor
 	if *fSave != "" {
 		return PNGMode(st, *fSave, *fWidth, *fHeight)
 	}
-	if err := ap.Open(); err != nil {
+	if err = ap.Open(); err != nil {
 		return 1 // error already logged
 	}
 	defer ap.Restore()
@@ -209,7 +230,7 @@ func Main() int {
 	}
 	_ = ap.OnResize()   // initial draw.
 	ap.AutoSync = false // keeps cursor blinking.
-	err := ap.FPSTicks(st.Tick)
+	err = ap.FPSTicks(st.Tick)
 	if *fMemprofile != "" {
 		f, errMP := os.Create(*fMemprofile)
 		if errMP != nil {
@@ -296,7 +317,10 @@ func (st *State) DrawTree() {
 	}
 
 	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
-	c.MonoColor = st.monoColor
+	c.TrunkColor = st.trunkColor
+	c.Rainbow = st.rainbow
+	c.Leaves = st.leaves
+	c.LeafSize = st.leafSize
 
 	var img draw.Image
 	if st.lines {
