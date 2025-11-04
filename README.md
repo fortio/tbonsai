@@ -21,6 +21,8 @@ Produces
 
 ![High Res Image](out80_7_35_mono.png)
 
+Use `-kitty` to see the high resolution image in your terminal that supports the Kitty Image protocol (kitty, ghostty, etc...)
+
 ## Install
 You can get the binary from [releases](https://github.com/fortio/tbonsai/releases)
 

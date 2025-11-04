@@ -33,10 +33,10 @@ type Branch struct {
 }
 
 func NewCanvas(rng rand.Rand, width, height int) *Canvas {
-	return NewCanvasWithOptions(rng, width, height, 4, 8.0, 40.0, 1.0)
+	return NewCanvasWithOptions(rng, width, height, 4, 7.0, 40.0, 1.0)
 }
 
-func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidth, trunkHeightPct, spread float64) *Canvas {
+func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidthPct, trunkHeightPct, spread float64) *Canvas {
 	c := &Canvas{
 		Width:    width,
 		Height:   height,
@@ -44,14 +44,15 @@ func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidth, t
 		Rand:     rng,
 		Spread:   spread,
 	}
-	trunk := c.Trunk(trunkWidth, trunkHeightPct)
+	trunk := c.Trunk(trunkWidthPct, trunkHeightPct)
 	c.Branches = append(c.Branches, trunk)
 	// Generate branches breadth-first
 	c.GenerateBranchesBFS(trunk, depth)
 	return c
 }
 
-func (c *Canvas) Trunk(trunkWidth, trunkHeightPct float64) *Branch {
+func (c *Canvas) Trunk(trunkWidthPct, trunkHeightPct float64) *Branch {
+	trunkWidth := float64(c.Width) * trunkWidthPct / 100.0
 	trunk := &Branch{
 		Start:      Point{X: float64(c.Width)/2 - 0.5, Y: float64(c.Height)},
 		Angle:      math.Pi/2 + .2*(c.Rand.Float64()-0.5),

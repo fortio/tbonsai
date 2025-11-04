@@ -4,10 +4,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"flag"
+	"fmt"
 	"image"
 	"image/draw"
 	"image/png"
+	"io"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -17,6 +21,7 @@ import (
 	"fortio.org/duration"
 	"fortio.org/log"
 	"fortio.org/rand"
+	"fortio.org/safecast"
 	"fortio.org/tbonsai/ptree"
 	"fortio.org/terminal/ansipixels"
 	"fortio.org/terminal/ansipixels/tcolor"
@@ -39,6 +44,9 @@ type State struct {
 	trunkWidth     float64
 	trunkHeightPct float64
 	spread         float64
+	kitty          bool
+	width          int
+	height         int
 }
 
 func SavePNG(filename string, img image.Image) error {
@@ -48,6 +56,53 @@ func SavePNG(filename string, img image.Image) error {
 	}
 	defer f.Close()
 	return png.Encode(f, img)
+}
+
+// KittyImage sends an image using the Kitty graphics protocol with auto-fit
+// https://sw.kovidgoyal.net/kitty/graphics-protocol/
+func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return err
+	}
+	data := buf.Bytes()
+	chunkSize := 4096 // 4KB chunks
+	// First, delete all previous images (a=d action=delete)
+	fmt.Fprint(w, "\x1b_Ga=d;\x1b\\")
+	// Setup
+	// First chunk with terminal size for auto-fit (preserves aspect ratio)
+	// c=columns, r=rows specify the display area
+	// C=1: do not move cursor after displaying image
+	// Somehow there isn't really that I know a "centered" so we have to use c= even though
+	// it's in theory redundant with our aspect ratio calculation.
+	fmt.Fprintf(w, "\x1b_Ga=T,f=100,q=1,C=1,z=-1,r=%d,c=%d", termHeight, termWidth)
+	i := 0
+	for len(data) > chunkSize {
+		chunk := data[:chunkSize]
+		data = data[chunkSize:]
+		// q=1: suppress OK response but keep errors
+		// a=T: transmit image data
+		// f=100: PNG format
+		// m=1: more chunks follow
+		if i == 0 {
+			// First chunk already has c= and r= for auto-fit
+			fmt.Fprint(w, ",m=1;")
+		} else {
+			fmt.Fprint(w, "\x1b_Ga=T,f=100,q=1,m=1;")
+		}
+		fmt.Fprint(w, base64.StdEncoding.EncodeToString(chunk))
+		fmt.Fprint(w, "\x1b\\")
+		i++
+	}
+	// Last chunk (m=0 is default)
+	if i == 0 {
+		fmt.Fprint(w, ";")
+	} else {
+		fmt.Fprint(w, "\x1b_Ga=T,f=100,q=1;")
+	}
+	fmt.Fprint(w, base64.StdEncoding.EncodeToString(data))
+	fmt.Fprint(w, "\x1b\\")
+	return nil
 }
 
 func PNGMode(st *State, filename string, width, height int) int {
@@ -81,10 +136,11 @@ func Main() int {
 	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
 	fLines := flag.Bool("lines", false, "Use simple line drawing instead of polygon mode (default is polygon)")
 	fSave := flag.String("save", "", "If set to a `file name`, saves one generated tree as a PNG image to that file and exits")
-	fWidth := flag.Int("width", 1280, "Width of the generated tree image when saving to PNG")
-	fHeight := flag.Int("height", 720, "Height of the generated tree image when saving to PNG")
+	fKitty := flag.Bool("kitty", false, "Use Kitty graphics protocol for high-res images (resizable, regeneratable)")
+	fWidth := flag.Int("width", 1280, "Width of the generated tree image when using Kitty mode or saving to PNG")
+	fHeight := flag.Int("height", 720, "Height of the generated tree image when using Kitty mode or saving to PNG")
 	fDepth := flag.Int("depth", 4, "Tree depth (number of branch levels)")
-	fTrunkWidth := flag.Float64("trunk-width", 8.0, "Starting width of the trunk")
+	fTrunkWidth := flag.Float64("trunk-width", 7.0, "Starting width of the trunk as `percentage` of image width")
 	fTrunkHeight := flag.Float64("trunk-height", 40.0, "Trunk height as `percentage` of available height")
 	fSpread := flag.Float64("spread", 1.0, "Branch angle spread multiplier (< 1.0 narrower, > 1.0 wider)")
 	cli.Main()
@@ -112,6 +168,9 @@ func Main() int {
 		trunkWidth:     *fTrunkWidth,
 		trunkHeightPct: *fTrunkHeight,
 		spread:         *fSpread,
+		kitty:          *fKitty,
+		width:          *fWidth,
+		height:         *fHeight,
 	}
 	if *fMonoColor != "" {
 		c, err := tcolor.FromString(*fMonoColor)
@@ -218,30 +277,52 @@ func (st *State) Pot() {
 }
 
 func (st *State) DrawTree() {
-	dy := 0
+	var width, height int
+	var dy int
 	if st.pot {
-		dy = 6
+		dy = 3
 	}
-	height := 2*st.ap.H - dy
-	c := ptree.NewCanvasWithOptions(st.rand, st.ap.W, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
+	usableHeight := st.ap.H - dy
+	if st.kitty {
+		aspectRatio := float64(st.ap.W) / float64(usableHeight*2)
+		// Use fixed dimensions for Kitty mode
+		height = st.height
+		// adjust aspect ratio for terminal cells
+		width = safecast.MustRound[int](float64(height) * aspectRatio)
+	} else {
+		// Use terminal dimensions for ansipixels mode
+		width = st.ap.W
+		height = 2 * usableHeight
+	}
+
+	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
 	c.MonoColor = st.monoColor
 
-	var showImg *image.RGBA
+	var img draw.Image
 	if st.lines {
-		nrgba := image.NewNRGBA(image.Rect(0, 0, st.ap.W, height))
-		ptree.DrawTree(nrgba, c, true)
-		// Convert NRGBA to RGBA for display
-		showImg = image.NewRGBA(nrgba.Bounds())
-		draw.Draw(showImg, nrgba.Bounds(), nrgba, image.Point{}, draw.Src)
+		img = image.NewNRGBA(image.Rect(0, 0, width, height))
 	} else {
-		showImg = image.NewRGBA(image.Rect(0, 0, st.ap.W, height))
-		ptree.DrawTree(showImg, c, false)
+		img = image.NewRGBA(image.Rect(0, 0, width, height))
 	}
+	ptree.DrawTree(img, c, st.lines)
 
 	st.ap.StartSyncMode()
 	st.ap.ClearScreen()
 	st.Pot()
-	_ = st.ap.ShowScaledImage(showImg)
+	if st.kitty {
+		st.ap.MoveCursor(0, 0)
+		_ = KittyImage(st.ap.Out, img, st.ap.W, st.ap.H-dy)
+	} else {
+		// Convert NRGBA to RGBA if needed
+		var showImg *image.RGBA
+		if st.lines {
+			showImg = image.NewRGBA(img.Bounds())
+			draw.Draw(showImg, img.Bounds(), img, image.Point{}, draw.Src)
+		} else {
+			showImg = img.(*image.RGBA)
+		}
+		_ = st.ap.ShowScaledImage(showImg)
+	}
 	st.ap.EndSyncMode()
 	st.last = time.Now()
 }
