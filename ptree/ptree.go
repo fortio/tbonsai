@@ -40,6 +40,7 @@ type Branch struct {
 }
 
 func (c *Canvas) Generate() {
+	c.Branches = nil // Reset branches for new tree generation
 	trunk := c.Trunk(c.TrunkWidthPct, c.TrunkHeightPct)
 	c.Branches = append(c.Branches, trunk)
 	// Generate branches breadth-first
