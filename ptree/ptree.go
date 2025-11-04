@@ -37,10 +37,6 @@ type Branch struct {
 	Spread     float64 // Angle spread multiplier
 }
 
-func NewCanvas(rng rand.Rand, width, height int) *Canvas {
-	return NewCanvasWithOptions(rng, width, height, 4, 7.0, 40.0, 1.0)
-}
-
 func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidthPct, trunkHeightPct, spread float64) *Canvas {
 	c := &Canvas{
 		Width:      width,
