@@ -8,6 +8,7 @@ require (
 	fortio.org/log v1.18.1
 	fortio.org/rand v1.1.0
 	fortio.org/terminal v0.60.2
+	golang.org/x/image v0.30.0
 )
 
 require (
@@ -18,7 +19,6 @@ require (
 	github.com/kortschak/goroutine v1.1.3 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	golang.org/x/crypto/x509roots/fallback v0.0.0-20250406160420-959f8f3db0fb // indirect
-	golang.org/x/image v0.30.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 )
