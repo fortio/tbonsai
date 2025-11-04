@@ -9,16 +9,18 @@ import (
 )
 
 type Canvas struct {
-	Width, Height int
-	Branches      []*Branch
-	TrunkColor    tcolor.RGBColor // Base color for trunk (depth 0)
-	Rainbow       bool            // If true, use random colors per branch
-	Leaves        bool            // If true, render leaves at branch endpoints
-	LeafSize      float64         // Multiplier for leaf size
-	LeafDensity   int             // Number of leaves per branch (0 = auto based on resolution)
-	MaxDepth      int             // Maximum depth level for color calculations
-	Rand          rand.Rand
-	Spread        float64 // Multiplier for branch angles (1.0 = default)
+	Width, Height  int
+	Branches       []*Branch
+	TrunkColor     tcolor.RGBColor // Base color for trunk (depth 0)
+	Rainbow        bool            // If true, use random colors per branch
+	Leaves         bool            // If true, render leaves at branch endpoints
+	LeafSize       float64         // Multiplier for leaf size
+	LeafDensity    int             // Number of leaves per branch (0 = auto based on resolution)
+	MaxDepth       int             // Maximum depth level for color calculations
+	Rand           rand.Rand
+	Spread         float64 // Multiplier for branch angles (1.0 = default)
+	TrunkWidthPct  float64 // Trunk width as percentage of canvas width
+	TrunkHeightPct float64 // Trunk height as percentage of canvas height
 }
 
 type Point struct {
@@ -37,22 +39,11 @@ type Branch struct {
 	Spread     float64 // Angle spread multiplier
 }
 
-func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidthPct, trunkHeightPct, spread float64) *Canvas {
-	c := &Canvas{
-		Width:      width,
-		Height:     height,
-		Branches:   make([]*Branch, 0, 20),
-		Rand:       rng,
-		Spread:     spread,
-		MaxDepth:   depth,
-		LeafSize:   1.0,
-		TrunkColor: tcolor.RGBColor{R: 101, G: 67, B: 33}, // Default dark brown #654321
-	}
-	trunk := c.Trunk(trunkWidthPct, trunkHeightPct)
+func (c *Canvas) Generate() {
+	trunk := c.Trunk(c.TrunkWidthPct, c.TrunkHeightPct)
 	c.Branches = append(c.Branches, trunk)
 	// Generate branches breadth-first
-	c.GenerateBranchesBFS(trunk, depth)
-	return c
+	c.GenerateBranchesBFS(trunk, c.MaxDepth)
 }
 
 func (c *Canvas) Trunk(trunkWidthPct, trunkHeightPct float64) *Branch {

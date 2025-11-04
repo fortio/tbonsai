@@ -110,11 +110,20 @@ func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
 
 func PNGMode(st *State, filename string, width, height int) int {
 	// Save a single generated tree as a PNG image and exit
-	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
-	c.TrunkColor = st.trunkColor
-	c.Rainbow = st.rainbow
-	c.Leaves = st.leaves
-	c.LeafSize = st.leafSize
+	c := &ptree.Canvas{
+		Width:          width,
+		Height:         height,
+		TrunkColor:     st.trunkColor,
+		Rainbow:        st.rainbow,
+		Leaves:         st.leaves,
+		LeafSize:       st.leafSize,
+		MaxDepth:       st.depth,
+		Rand:           st.rand,
+		Spread:         st.spread,
+		TrunkWidthPct:  st.trunkWidth,
+		TrunkHeightPct: st.trunkHeightPct,
+	}
+	c.Generate()
 	var img draw.Image
 	if st.lines {
 		img = image.NewNRGBA(image.Rect(0, 0, width, height))
@@ -315,13 +324,20 @@ func (st *State) DrawTree() {
 		width = st.ap.W
 		height = 2 * usableHeight
 	}
-
-	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
-	c.TrunkColor = st.trunkColor
-	c.Rainbow = st.rainbow
-	c.Leaves = st.leaves
-	c.LeafSize = st.leafSize
-
+	c := &ptree.Canvas{
+		Width:          width,
+		Height:         height,
+		TrunkColor:     st.trunkColor,
+		Rainbow:        st.rainbow,
+		Leaves:         st.leaves,
+		LeafSize:       st.leafSize,
+		MaxDepth:       st.depth,
+		Rand:           st.rand,
+		Spread:         st.spread,
+		TrunkWidthPct:  st.trunkWidth,
+		TrunkHeightPct: st.trunkHeightPct,
+	}
+	c.Generate()
 	var img draw.Image
 	if st.lines {
 		img = image.NewNRGBA(image.Rect(0, 0, width, height))
