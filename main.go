@@ -277,7 +277,7 @@ func (st *State) DrawTree() {
 	var width, height int
 	var dy int
 	if st.pot {
-		dy = 6
+		dy = 3
 	}
 	if st.kitty {
 		// Use fixed dimensions for Kitty mode
@@ -286,7 +286,7 @@ func (st *State) DrawTree() {
 	} else {
 		// Use terminal dimensions for ansipixels mode
 		width = st.ap.W
-		height = 2*st.ap.H - dy
+		height = 2 * (st.ap.H - dy)
 	}
 
 	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
@@ -305,7 +305,7 @@ func (st *State) DrawTree() {
 	st.Pot()
 	if st.kitty {
 		st.ap.MoveCursor(0, 0)
-		_ = KittyImage(st.ap.Out, img, st.ap.W, st.ap.H-dy/2)
+		_ = KittyImage(st.ap.Out, img, st.ap.W, st.ap.H-dy)
 	} else {
 		// Convert NRGBA to RGBA if needed
 		var showImg *image.RGBA
