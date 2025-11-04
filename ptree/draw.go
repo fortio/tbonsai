@@ -45,7 +45,8 @@ func toRGBA(rgb tcolor.RGBColor) color.RGBA {
 	return color.RGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255}
 }
 
-// calcBoundingBox computes the bounding box for a set of points, adds margin, clamps to image bounds, and returns integer coordinates.
+// calcBoundingBox computes the bounding box for a set of points,
+// adds margin, clamps to image bounds, and returns integer coordinates.
 func calcBoundingBox(points []float64, imgBounds image.Rectangle) (x0Int, y0Int, x1Int, y1Int int, offscreen bool) {
 	if len(points)%2 != 0 {
 		panic("points must have even length")
