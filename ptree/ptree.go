@@ -40,7 +40,7 @@ type Branch struct {
 }
 
 func (c *Canvas) Generate() {
-	c.Branches = nil // Reset branches for new tree generation
+	c.Branches = c.Branches[:0] // Reset branches for new tree generation, but keep slice allocated (if it has been already)
 	trunk := c.Trunk(c.TrunkWidthPct, c.TrunkHeightPct)
 	c.Branches = append(c.Branches, trunk)
 	// Generate branches breadth-first
