@@ -201,20 +201,7 @@ func Main() int {
 		ap.HideCursor()
 	}
 	ap.SyncBackgroundColor()
-	ap.OnResize = func() error {
-		ap.ClearScreen()
-		ap.StartSyncMode()
-		if st.tree {
-			// In tree mode, redraw a new tree at the new size
-			st.DrawTree()
-		} else {
-			// Initial screen being resized
-			st.Pot()
-			ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
-		}
-		ap.EndSyncMode()
-		return nil
-	}
+	ap.OnResize = st.OnResize
 	_ = ap.OnResize()   // initial draw.
 	ap.AutoSync = false // keeps cursor blinking.
 	err = ap.FPSTicks(st.Tick)
@@ -235,6 +222,21 @@ func Main() int {
 		return 1
 	}
 	return 0
+}
+
+func (st *State) OnResize() error {
+	st.ap.ClearScreen()
+	st.ap.StartSyncMode()
+	if st.tree {
+		// In tree mode, redraw a new tree at the new size
+		st.DrawTree()
+	} else {
+		// Initial screen being resized
+		st.Pot()
+		st.ap.WriteBoxed(st.ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", st.ap.W, st.ap.H)
+	}
+	st.ap.EndSyncMode()
+	return nil
 }
 
 func (st *State) Tick() bool {
