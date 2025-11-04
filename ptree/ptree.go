@@ -13,6 +13,7 @@ type Canvas struct {
 	Branches      []*Branch
 	MonoColor     tcolor.RGBColor
 	Rand          rand.Rand
+	Spread        float64 // Multiplier for branch angles (1.0 = default)
 }
 
 type Point struct {
@@ -27,19 +28,21 @@ type Branch struct {
 	StartWidth float64
 	EndWidth   float64
 	Rand       rand.Rand
-	IsTrunk    bool // If true, draw bottom flat
+	IsTrunk    bool    // If true, draw bottom flat
+	Spread     float64 // Angle spread multiplier
 }
 
 func NewCanvas(rng rand.Rand, width, height int) *Canvas {
-	return NewCanvasWithOptions(rng, width, height, 4, 8.0, 40.0)
+	return NewCanvasWithOptions(rng, width, height, 4, 8.0, 40.0, 1.0)
 }
 
-func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidth, trunkHeightPct float64) *Canvas {
+func NewCanvasWithOptions(rng rand.Rand, width, height, depth int, trunkWidth, trunkHeightPct, spread float64) *Canvas {
 	c := &Canvas{
 		Width:    width,
 		Height:   height,
 		Branches: make([]*Branch, 0, 20),
 		Rand:     rng,
+		Spread:   spread,
 	}
 	trunk := c.Trunk(trunkWidth, trunkHeightPct)
 	c.Branches = append(c.Branches, trunk)
@@ -57,6 +60,7 @@ func (c *Canvas) Trunk(trunkWidth, trunkHeightPct float64) *Branch {
 		EndWidth:   trunkWidth * (0.75 + 0.2*c.Rand.Float64()),
 		Rand:       c.Rand,
 		IsTrunk:    true,
+		Spread:     c.Spread,
 	}
 	trunk.SetEnd()
 	return trunk
@@ -168,6 +172,7 @@ func (b *Branch) Add(t BranchType) *Branch {
 		Length:     b.Length * (0.4 + 0.5*b.Rand.Float64()),
 		StartWidth: b.EndWidth * (0.6 + 0.1*b.Rand.Float64()),
 		Rand:       b.Rand,
+		Spread:     b.Spread,
 	}
 	newB.EndWidth = newB.StartWidth * (0.7 + 0.1*b.Rand.Float64())
 	// Adjust start point for terminal branches to make edges contiguous
@@ -179,17 +184,18 @@ func (b *Branch) Add(t BranchType) *Branch {
 }
 
 func (b *Branch) calculateChildAngle(t BranchType) float64 {
-	wiggle := (b.Rand.Float64() - 0.5) * math.Pi / 20
+	// Scale wiggle with spread for more natural variation
+	wiggle := (b.Rand.Float64() - 0.5) * math.Pi / 20 * b.Spread
 	switch t {
 	case LeftBranch:
-		return b.Angle - math.Pi/6 + wiggle
+		return b.Angle - math.Pi/6*b.Spread + wiggle
 	case RightBranch:
-		return b.Angle + math.Pi/6 + wiggle
+		return b.Angle + math.Pi/6*b.Spread + wiggle
 	default: // MidBranch
 		sign := 1.0
 		if b.Rand.Float64() < 0.5 {
 			sign = -1.0
 		}
-		return b.Angle + sign*math.Pi/8 + wiggle
+		return b.Angle + sign*math.Pi/8*b.Spread + wiggle
 	}
 }
