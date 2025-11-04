@@ -65,18 +65,15 @@ func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
 		return err
 	}
 	data := buf.Bytes()
-	chunkSize := 4096
+	chunkSize := 4096 // 4KB chunks
 	// First, delete all previous images (a=d action=delete)
-	fmt.Fprint(w, "\x1b_Ga=d;")
+	fmt.Fprint(w, "\x1b_Ga=d;\x1b\\")
+	// Setup
 	// First chunk with terminal size for auto-fit (preserves aspect ratio)
 	// c=columns, r=rows specify the display area
 	// C=1: do not move cursor after displaying image
-	firstChunk := data[:chunkSize]
-	data = data[chunkSize:]
-	fmt.Printf("\x1b_Ga=T,f=100,q=1,m=1,C=1,z=-1,c=%d,r=%d;", termWidth, termHeight)
-	fmt.Print(base64.StdEncoding.EncodeToString(firstChunk))
-	fmt.Print("\x1b\\")
-
+	fmt.Fprintf(w, "\x1b_Ga=T,f=100,q=1,C=1,z=-1,c=%d,r=%d", termWidth, termHeight)
+	i := 0
 	for len(data) > chunkSize {
 		chunk := data[:chunkSize]
 		data = data[chunkSize:]
@@ -84,12 +81,22 @@ func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
 		// a=T: transmit image data
 		// f=100: PNG format
 		// m=1: more chunks follow
-		fmt.Fprint(w, "\x1b_Ga=T,f=100,q=1,m=1;")
+		if i == 0 {
+			// First chunk already has c= and r= for auto-fit
+			fmt.Fprint(w, ",m=1;")
+		} else {
+			fmt.Fprint(w, "\x1b_Ga=T,f=100,q=1,m=1;")
+		}
 		fmt.Fprint(w, base64.StdEncoding.EncodeToString(chunk))
 		fmt.Fprint(w, "\x1b\\")
+		i++
 	}
 	// Last chunk (m=0 is default)
-	fmt.Fprint(w, "\x1b_Ga=T,f=100,q=1;")
+	if i == 0 {
+		fmt.Fprint(w, ";")
+	} else {
+		fmt.Fprint(w, "\x1b_Ga=T,f=100,q=1;")
+	}
 	fmt.Fprint(w, base64.StdEncoding.EncodeToString(data))
 	fmt.Fprint(w, "\x1b\\")
 	return nil
