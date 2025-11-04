@@ -21,6 +21,7 @@ import (
 	"fortio.org/duration"
 	"fortio.org/log"
 	"fortio.org/rand"
+	"fortio.org/safecast"
 	"fortio.org/tbonsai/ptree"
 	"fortio.org/terminal/ansipixels"
 	"fortio.org/terminal/ansipixels/tcolor"
@@ -72,7 +73,9 @@ func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
 	// First chunk with terminal size for auto-fit (preserves aspect ratio)
 	// c=columns, r=rows specify the display area
 	// C=1: do not move cursor after displaying image
-	fmt.Fprintf(w, "\x1b_Ga=T,f=100,q=1,C=1,z=-1,c=%d,r=%d", termWidth, termHeight)
+	// Somehow there isn't really that I know a "centered" so we have to use c= even though
+	// it's in theory redundant with our aspect ratio calculation.
+	fmt.Fprintf(w, "\x1b_Ga=T,f=100,q=1,C=1,z=-1,r=%d,c=%d", termHeight, termWidth)
 	i := 0
 	for len(data) > chunkSize {
 		chunk := data[:chunkSize]
@@ -137,7 +140,7 @@ func Main() int {
 	fWidth := flag.Int("width", 1280, "Width of the generated tree image when using Kitty mode or saving to PNG")
 	fHeight := flag.Int("height", 720, "Height of the generated tree image when using Kitty mode or saving to PNG")
 	fDepth := flag.Int("depth", 4, "Tree depth (number of branch levels)")
-	fTrunkWidth := flag.Float64("trunk-width", 8.0, "Starting width of the trunk")
+	fTrunkWidth := flag.Float64("trunk-width", 7.0, "Starting width of the trunk as `percentage` of image width")
 	fTrunkHeight := flag.Float64("trunk-height", 40.0, "Trunk height as `percentage` of available height")
 	fSpread := flag.Float64("spread", 1.0, "Branch angle spread multiplier (< 1.0 narrower, > 1.0 wider)")
 	cli.Main()
@@ -279,14 +282,17 @@ func (st *State) DrawTree() {
 	if st.pot {
 		dy = 3
 	}
+	usableHeight := st.ap.H - dy
 	if st.kitty {
+		aspectRatio := float64(st.ap.W) / float64(usableHeight*2)
 		// Use fixed dimensions for Kitty mode
-		width = st.width
 		height = st.height
+		// adjust aspect ratio for terminal cells
+		width = safecast.MustRound[int](float64(height) * aspectRatio)
 	} else {
 		// Use terminal dimensions for ansipixels mode
 		width = st.ap.W
-		height = 2 * (st.ap.H - dy)
+		height = 2 * usableHeight
 	}
 
 	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
