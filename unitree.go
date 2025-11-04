@@ -3,7 +3,6 @@ package main
 import (
 	"strings"
 
-	"fortio.org/rand"
 	"fortio.org/terminal/ansipixels"
 )
 
@@ -25,7 +24,7 @@ const trunk = `
  ◢█████◣
 `
 
-func (st *State) TreeBase(_ rand.Rand) {
+func (st *State) TreeBase() {
 	w := st.ap.W
 	h := st.ap.H
 	cx := (w - 1) / 2

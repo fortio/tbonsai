@@ -14,7 +14,7 @@ Current state (with optional `-pot` and `-lines` only and random colors):
 
 You can also save high resolution images, for instance
 ```
-tbonsai -color F3A005 -trunk-width 80 -depth 7 -seed 42 -trunk-height 35 -save out80_7_35_mono.png
+tbonsai -trunk-width 6.25 -depth 7 -seed 42 -trunk-height 35 -save out80_7_35_mono.png
 ```
 
 Produces

@@ -32,21 +32,16 @@ func main() {
 }
 
 type State struct {
-	ap             *ansipixels.AnsiPixels
-	pot            bool
-	tree           bool
-	auto           time.Duration
-	last           time.Time
-	monoColor      tcolor.RGBColor
-	rand           rand.Rand
-	lines          bool
-	depth          int
-	trunkWidth     float64
-	trunkHeightPct float64
-	spread         float64
-	kitty          bool
-	width          int
-	height         int
+	ap     *ansipixels.AnsiPixels
+	pot    bool
+	tree   bool
+	auto   time.Duration
+	last   time.Time
+	lines  bool
+	kitty  bool
+	width  int
+	height int
+	ptree.Canvas
 }
 
 func SavePNG(filename string, img image.Image) error {
@@ -107,15 +102,16 @@ func KittyImage(w io.Writer, img image.Image, termWidth, termHeight int) error {
 
 func PNGMode(st *State, filename string, width, height int) int {
 	// Save a single generated tree as a PNG image and exit
-	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
-	c.MonoColor = st.monoColor
+	st.Canvas.Width = width
+	st.Canvas.Height = height
+	st.Canvas.Generate()
 	var img draw.Image
 	if st.lines {
 		img = image.NewNRGBA(image.Rect(0, 0, width, height))
 	} else {
 		img = image.NewRGBA(image.Rect(0, 0, width, height))
 	}
-	ptree.DrawTree(img, c, st.lines)
+	ptree.DrawTree(img, &st.Canvas, st.lines)
 	if err := SavePNG(filename, img); err != nil {
 		return log.FErrf("failed to save PNG: %v", err)
 	}
@@ -130,8 +126,11 @@ func Main() int {
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
 	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
-	fMonoColor := flag.String("color", "",
-		"If set to a `hex color` like FD9103, use that single color for the tree instead of random colors")
+	fTrunkColor := flag.String("color", "",
+		"Trunk base color as `hex color` (default with leaves: #654321 dark brown, branches gradually lighten with depth).")
+	fRainbow := flag.Bool("rainbow", false, "Use random colors for each branch instead of depth-based brown gradient")
+	fLeaves := flag.Bool("leaves", false, "Draw leaves at branch endpoints")
+	fLeafSize := flag.Float64("leaf-size", 1.0, "Leaf size multiplier")
 	fAuto := duration.Flag("auto", 0, "If >0, automatically redraw a new tree at this `interval` and no user input is needed")
 	fSeed := flag.Uint64("seed", 0, "Seed for random number generation. 0 means different random each run")
 	fLines := flag.Bool("lines", false, "Use simple line drawing instead of polygon mode (default is polygon)")
@@ -139,9 +138,9 @@ func Main() int {
 	fKitty := flag.Bool("kitty", false, "Use Kitty graphics protocol for high-res images (resizable, regeneratable)")
 	fWidth := flag.Int("width", 1280, "Width of the generated tree image when using Kitty mode or saving to PNG")
 	fHeight := flag.Int("height", 720, "Height of the generated tree image when using Kitty mode or saving to PNG")
-	fDepth := flag.Int("depth", 4, "Tree depth (number of branch levels)")
+	fDepth := flag.Int("depth", 6, "Tree depth (number of branch levels)")
 	fTrunkWidth := flag.Float64("trunk-width", 7.0, "Starting width of the trunk as `percentage` of image width")
-	fTrunkHeight := flag.Float64("trunk-height", 40.0, "Trunk height as `percentage` of available height")
+	fTrunkHeight := flag.Float64("trunk-height", 35.0, "Trunk height as `percentage` of available height")
 	fSpread := flag.Float64("spread", 1.0, "Branch angle spread multiplier (< 1.0 narrower, > 1.0 wider)")
 	cli.Main()
 	if *fCpuprofile != "" {
@@ -157,34 +156,43 @@ func Main() int {
 		defer pprof.StopCPUProfile()
 	}
 	rnd := rand.New(*fSeed)
-	ap := ansipixels.NewAnsiPixels(*fFPS)
-	st := &State{
-		ap:             ap,
-		pot:            *fPot,
-		auto:           *fAuto,
-		rand:           rnd,
-		lines:          *fLines,
-		depth:          *fDepth,
-		trunkWidth:     *fTrunkWidth,
-		trunkHeightPct: *fTrunkHeight,
-		spread:         *fSpread,
-		kitty:          *fKitty,
-		width:          *fWidth,
-		height:         *fHeight,
-	}
-	if *fMonoColor != "" {
-		c, err := tcolor.FromString(*fMonoColor)
-		if err != nil {
-			return log.FErrf("can't parse mono-color %q: %v", *fMonoColor, err)
+	if *fTrunkColor == "" {
+		if *fLeaves {
+			*fTrunkColor = "#654321" // default dark brown
+		} else {
+			*fTrunkColor = "#F3A005" // default lighter brown without because we don't lighten with depth then
 		}
-		ct, data := c.Decode()
-		st.monoColor = tcolor.ToRGB(ct, data)
 	}
+	c, err := tcolor.FromString(*fTrunkColor)
+	if err != nil {
+		return log.FErrf("invalid trunk color: %v", err)
+	}
+	ap := ansipixels.NewAnsiPixels(*fFPS)
 	ap.TrueColor = *fTrueColor
+	st := &State{
+		ap:     ap,
+		pot:    *fPot,
+		auto:   *fAuto,
+		lines:  *fLines,
+		kitty:  *fKitty,
+		width:  *fWidth,
+		height: *fHeight,
+		Canvas: ptree.Canvas{
+			TrunkColor:     tcolor.ToRGB(c.Decode()),
+			Rainbow:        *fRainbow,
+			Leaves:         *fLeaves,
+			LeafSize:       *fLeafSize,
+			MaxDepth:       *fDepth,
+			Rand:           rnd,
+			Spread:         *fSpread,
+			TrunkWidthPct:  *fTrunkWidth,
+			TrunkHeightPct: *fTrunkHeight,
+		},
+	}
 	if *fSave != "" {
 		return PNGMode(st, *fSave, *fWidth, *fHeight)
 	}
-	if err := ap.Open(); err != nil {
+	if err = ap.Open(); err != nil {
 		return 1 // error already logged
 	}
 	defer ap.Restore()
@@ -193,23 +201,10 @@ func Main() int {
 		ap.HideCursor()
 	}
 	ap.SyncBackgroundColor()
-	ap.OnResize = func() error {
-		ap.ClearScreen()
-		ap.StartSyncMode()
-		if st.tree {
-			// In tree mode, redraw a new tree at the new size
-			st.DrawTree()
-		} else {
-			// Initial screen being resized
-			st.Pot()
-			ap.WriteBoxed(ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", ap.W, ap.H)
-		}
-		ap.EndSyncMode()
-		return nil
-	}
+	ap.OnResize = st.OnResize
 	_ = ap.OnResize()   // initial draw.
 	ap.AutoSync = false // keeps cursor blinking.
-	err := ap.FPSTicks(st.Tick)
+	err = ap.FPSTicks(st.Tick)
 	if *fMemprofile != "" {
 		f, errMP := os.Create(*fMemprofile)
 		if errMP != nil {
@@ -227,6 +222,21 @@ func Main() int {
 		return 1
 	}
 	return 0
+}
+
+func (st *State) OnResize() error {
+	st.ap.ClearScreen()
+	st.ap.StartSyncMode()
+	if st.tree {
+		// In tree mode, redraw a new tree at the new size
+		st.DrawTree()
+	} else {
+		// Initial screen being resized
+		st.Pot()
+		st.ap.WriteBoxed(st.ap.H/2-3, "Welcome to tbonsai!\n%dx%d\nQ to quit,\nT for a tree.", st.ap.W, st.ap.H)
+	}
+	st.ap.EndSyncMode()
+	return nil
 }
 
 func (st *State) Tick() bool {
@@ -272,12 +282,11 @@ func (st *State) Pot() {
 	st.ap.WriteAtStr(cx+radius-5, h-1, "●") // or ⚪ at -7
 	st.ap.WriteAtStr(cx-radius-1, h-4, tcolor.Green.Foreground()+strings.Repeat("▁", 2*radius+3)+tcolor.Reset)
 	if !st.tree {
-		st.TreeBase(st.rand) // alternative tree base when not drawing branches as lines/polygons but unicode blocks instead.
+		st.TreeBase() // alternative tree base when not drawing branches as lines/polygons but unicode blocks instead.
 	}
 }
 
 func (st *State) DrawTree() {
-	var width, height int
 	var dy int
 	if st.pot {
 		dy = 3
@@ -286,25 +295,22 @@ func (st *State) DrawTree() {
 	if st.kitty {
 		aspectRatio := float64(st.ap.W) / float64(usableHeight*2)
 		// Use fixed dimensions for Kitty mode
-		height = st.height
+		st.Canvas.Height = st.height
 		// adjust aspect ratio for terminal cells
-		width = safecast.MustRound[int](float64(height) * aspectRatio)
+		st.Canvas.Width = safecast.MustRound[int](float64(st.Canvas.Height) * aspectRatio)
 	} else {
 		// Use terminal dimensions for ansipixels mode
-		width = st.ap.W
-		height = 2 * usableHeight
+		st.Canvas.Width = st.ap.W
+		st.Canvas.Height = 2 * usableHeight
 	}
-
-	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
-	c.MonoColor = st.monoColor
-
+	st.Canvas.Generate()
 	var img draw.Image
 	if st.lines {
-		img = image.NewNRGBA(image.Rect(0, 0, width, height))
+		img = image.NewNRGBA(image.Rect(0, 0, st.Canvas.Width, st.Canvas.Height))
 	} else {
-		img = image.NewRGBA(image.Rect(0, 0, width, height))
+		img = image.NewRGBA(image.Rect(0, 0, st.Canvas.Width, st.Canvas.Height))
 	}
-	ptree.DrawTree(img, c, st.lines)
+	ptree.DrawTree(img, &st.Canvas, st.lines)
 
 	st.ap.StartSyncMode()
 	st.ap.ClearScreen()
