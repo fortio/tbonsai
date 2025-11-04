@@ -54,7 +54,7 @@ func getBranchColor(c *Canvas, b *Branch) tcolor.RGBColor {
 		return tcolor.ToRGB(ct, data)
 	}
 	// Depth-based gradient from dark trunk to lighter branches
-	if c.MaxDepth == 0 {
+	if c.MaxDepth == 0 || !c.Leaves {
 		return c.TrunkColor
 	}
 	// Interpolate from trunk color to lighter version

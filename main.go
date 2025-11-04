@@ -126,8 +126,8 @@ func Main() int {
 	fMemprofile := flag.String("profile-mem", "", "write memory profile to `file`")
 	fPot := flag.Bool("pot", false, "Draw the pot")
 	fFPS := flag.Float64("fps", 60, "Frames per second (ansipixels rendering)")
-	fTrunkColor := flag.String("color", "654321",
-		"Trunk base color as `hex color` (default: 654321 dark brown). Branches gradually lighten with depth.")
+	fTrunkColor := flag.String("color", "",
+		"Trunk base color as `hex color` (default with leaves: #654321 dark brown, branches gradually lighten with depth).")
 	fRainbow := flag.Bool("rainbow", false, "Use random colors for each branch instead of depth-based brown gradient")
 	fLeaves := flag.Bool("leaves", false, "Draw leaves at branch endpoints")
 	fLeafSize := flag.Float64("leaf-size", 1.0, "Leaf size multiplier")
@@ -156,6 +156,13 @@ func Main() int {
 		defer pprof.StopCPUProfile()
 	}
 	rnd := rand.New(*fSeed)
+	if *fTrunkColor == "" {
+		if *fLeaves {
+			*fTrunkColor = "#654321" // default dark brown
+		} else {
+			*fTrunkColor = "#F3A005" // default lighter brown without because we don't lighten with depth then
+		}
+	}
 	c, err := tcolor.FromString(*fTrunkColor)
 	if err != nil {
 		return log.FErrf("invalid trunk color: %v", err)
