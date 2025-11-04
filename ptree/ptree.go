@@ -154,7 +154,7 @@ func (c *Canvas) GenerateBranchesBFS(root *Branch, maxDepth int) {
 
 // Add a branch.
 func (b *Branch) Add(t BranchType, depth int) *Branch {
-	if b.Length < 1 {
+	if b.Length <= 3 { // parent too short already
 		return nil
 	}
 	// Pick branch point along parent branch
