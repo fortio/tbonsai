@@ -14,7 +14,7 @@ Using `-leaves` and regular terminal half block resolution
 
 Same with `-kitty` using the Kitty Image protocol for high resolution image directly in the terminal background:
 
-![Terminal Leaves Kitty](examplesLeavesKitty.png)
+![Terminal Leaves Kitty](exampleLeavesKitty.png)
 
 With optional `-pot` and `-lines` only and random colors:
 
