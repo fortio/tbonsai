@@ -38,6 +38,7 @@ type State struct {
 	depth          int
 	trunkWidth     float64
 	trunkHeightPct float64
+	spread         float64
 }
 
 func SavePNG(filename string, img image.Image) error {
@@ -51,7 +52,7 @@ func SavePNG(filename string, img image.Image) error {
 
 func PNGMode(st *State, filename string, width, height int) int {
 	// Save a single generated tree as a PNG image and exit
-	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct)
+	c := ptree.NewCanvasWithOptions(st.rand, width, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
 	c.MonoColor = st.monoColor
 	var img draw.Image
 	if st.lines {
@@ -85,6 +86,7 @@ func Main() int {
 	fDepth := flag.Int("depth", 4, "Tree depth (number of branch levels)")
 	fTrunkWidth := flag.Float64("trunk-width", 8.0, "Starting width of the trunk")
 	fTrunkHeight := flag.Float64("trunk-height", 40.0, "Trunk height as `percentage` of available height")
+	fSpread := flag.Float64("spread", 1.0, "Branch angle spread multiplier (< 1.0 narrower, > 1.0 wider)")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -109,6 +111,7 @@ func Main() int {
 		depth:          *fDepth,
 		trunkWidth:     *fTrunkWidth,
 		trunkHeightPct: *fTrunkHeight,
+		spread:         *fSpread,
 	}
 	if *fMonoColor != "" {
 		c, err := tcolor.FromString(*fMonoColor)
@@ -220,7 +223,7 @@ func (st *State) DrawTree() {
 		dy = 6
 	}
 	height := 2*st.ap.H - dy
-	c := ptree.NewCanvasWithOptions(st.rand, st.ap.W, height, st.depth, st.trunkWidth, st.trunkHeightPct)
+	c := ptree.NewCanvasWithOptions(st.rand, st.ap.W, height, st.depth, st.trunkWidth, st.trunkHeightPct, st.spread)
 	c.MonoColor = st.monoColor
 
 	var showImg *image.RGBA
