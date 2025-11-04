@@ -59,9 +59,9 @@ func getBranchColor(c *Canvas, b *Branch) tcolor.RGBColor {
 	}
 	// Interpolate from trunk color to lighter version
 	// Depth 0 (trunk) = dark, MaxDepth = lightest
-	t := float64(b.Depth) / float64(c.MaxDepth)
+	t := max(0, float64(b.Depth-2)/float64(c.MaxDepth-2)) // Start lightening from depth 2
 	// Lighten by increasing RGB values toward white
-	lightenFactor := 1.0 + t*1.5 // Gradually lighten up to 2.5x
+	lightenFactor := 1 + t // Gradually lighten
 	r := uint8(min(255, float64(c.TrunkColor.R)*lightenFactor))
 	g := uint8(min(255, float64(c.TrunkColor.G)*lightenFactor))
 	blue := uint8(min(255, float64(c.TrunkColor.B)*lightenFactor))
