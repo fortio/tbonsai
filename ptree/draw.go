@@ -45,6 +45,35 @@ func toRGBA(rgb tcolor.RGBColor) color.RGBA {
 	return color.RGBA{R: rgb.R, G: rgb.G, B: rgb.B, A: 255}
 }
 
+// calcBoundingBox computes the bounding box for a set of points, adds margin, clamps to image bounds, and returns integer coordinates.
+func calcBoundingBox(points []float64, imgBounds image.Rectangle) (x0Int, y0Int, x1Int, y1Int int, offscreen bool) {
+	if len(points)%2 != 0 {
+		panic("points must have even length")
+	}
+	minX, maxX := points[0], points[0]
+	minY, maxY := points[1], points[1]
+	for i := 2; i < len(points); i += 2 {
+		x, y := points[i], points[i+1]
+		minX = min(minX, x)
+		maxX = max(maxX, x)
+		minY = min(minY, y)
+		maxY = max(maxY, y)
+	}
+	// Add 1px margin for anti-aliasing and clamp to image bounds
+	x0 := max(0.0, minX-1)
+	y0 := max(0.0, minY-1)
+	x1 := min(float64(imgBounds.Dx()), maxX+1)
+	y1 := min(float64(imgBounds.Dy()), maxY+1)
+	if x0 >= x1 || y0 >= y1 {
+		return 0, 0, 0, 0, true // Completely offscreen
+	}
+	x0Int = int(math.Floor(x0))
+	y0Int = int(math.Floor(y0))
+	x1Int = int(math.Ceil(x1))
+	y1Int = int(math.Ceil(y1))
+	return x0Int, y0Int, x1Int, y1Int, false
+}
+
 // getBranchColor determines the color for a branch based on depth and mode.
 func getBranchColor(c *Canvas, b *Branch) tcolor.RGBColor {
 	if c.Rainbow {
@@ -176,27 +205,11 @@ func drawLeafTriangle(
 
 // fillTriangle fills a triangle using vector rasterizer for smooth anti-aliased rendering.
 func fillTriangle(img *image.RGBA, x1, y1, x2, y2, x3, y3 float64, rgb tcolor.RGBColor) {
-	// Find bounding box
-	minX := min(x1, x2, x3)
-	maxX := max(x1, x2, x3)
-	minY := min(y1, y2, y3)
-	maxY := max(y1, y2, y3)
-
-	// Add 1px margin for anti-aliasing and clamp to image bounds
-	imgBounds := img.Bounds()
-	x0 := max(0, minX-1)
-	y0 := max(0, minY-1)
-	x1Bound := min(float64(imgBounds.Dx()), maxX+1)
-	y1Bound := min(float64(imgBounds.Dy()), maxY+1)
-
-	if x0 >= x1Bound || y0 >= y1Bound {
-		return // Completely offscreen
+	points := []float64{x1, y1, x2, y2, x3, y3}
+	x0Int, y0Int, x1Int, y1Int, offscreen := calcBoundingBox(points, img.Bounds())
+	if offscreen {
+		return
 	}
-
-	x0Int := int(math.Floor(x0))
-	y0Int := int(math.Floor(y0))
-	x1Int := int(math.Ceil(x1Bound))
-	y1Int := int(math.Ceil(y1Bound))
 	wInt := x1Int - x0Int
 	hInt := y1Int - y0Int
 
@@ -239,26 +252,11 @@ func drawBranchPolygon(img *image.RGBA, b *Branch, rgb tcolor.RGBColor, rast *ve
 	e1x, e1y := b.End.X+perpX*endHalfWidth, b.End.Y+perpY*endHalfWidth
 	e2x, e2y := b.End.X-perpX*endHalfWidth, b.End.Y-perpY*endHalfWidth
 
-	// Calculate tight bounding box
-	minX := min(s1x, s2x, e1x, e2x)
-	maxX := max(s1x, s2x, e1x, e2x)
-	minY := min(s1y, s2y, e1y, e2y)
-	maxY := max(s1y, s2y, e1y, e2y)
-
-	// Add 1px margin for anti-aliasing and clamp to image bounds
-	imgBounds := img.Bounds()
-	x0 := max(0, minX-1)
-	y0 := max(0, minY-1)
-	x1 := min(float64(imgBounds.Dx()), maxX+1)
-	y1 := min(float64(imgBounds.Dy()), maxY+1)
-
-	if x0 >= x1 || y0 >= y1 {
-		return // Completely offscreen
+	points := []float64{s1x, s1y, s2x, s2y, e1x, e1y, e2x, e2y}
+	x0Int, y0Int, x1Int, y1Int, offscreen := calcBoundingBox(points, img.Bounds())
+	if offscreen {
+		return
 	}
-	x0Int := int(math.Floor(x0))
-	y0Int := int(math.Floor(y0))
-	x1Int := int(math.Ceil(x1))
-	y1Int := int(math.Ceil(y1))
 	wInt := x1Int - x0Int
 	hInt := y1Int - y0Int
 
