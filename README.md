@@ -61,6 +61,8 @@ Use `-auto 1s` for a new tree every 1s without needing to press "T"
 
 Use `-rainbow` for rainbow colors.
 
+Use `-exit` and optionally redirect stdout (eg `tbonsai -exit > tree.ansi`) to render immediately one tree and exit without putting the terminal in raw mode.
+
 Etc,... See help for other flags/options
 
 ```
@@ -77,6 +79,8 @@ flags:
         Trunk base color as hex color (default with leaves: #654321 dark brown, branches gradually lighten with depth).
   -depth int
         Tree depth (number of branch levels) (default 6)
+  -exit
+        Exit immediately after drawing the tree once and saving ansi/kitty image if applicable
   -fps float
         Frames per second (ansipixels rendering) (default 60)
   -height int
