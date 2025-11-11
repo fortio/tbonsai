@@ -142,6 +142,7 @@ func Main() int {
 	fTrunkWidth := flag.Float64("trunk-width", 7.0, "Starting width of the trunk as `percentage` of image width")
 	fTrunkHeight := flag.Float64("trunk-height", 35.0, "Trunk height as `percentage` of available height")
 	fSpread := flag.Float64("spread", 1.0, "Branch angle spread multiplier (< 1.0 narrower, > 1.0 wider)")
+	fExit := flag.Bool("exit", false, "Exit immediately after drawing the tree once and saving ansi/kitty image if applicable")
 	cli.Main()
 	if *fCpuprofile != "" {
 		f, err := os.Create(*fCpuprofile)
@@ -192,19 +193,29 @@ func Main() int {
 	if *fSave != "" {
 		return PNGMode(st, *fSave, *fWidth, *fHeight)
 	}
-	if err = ap.Open(); err != nil {
-		return 1 // error already logged
-	}
-	defer ap.Restore()
-	if st.auto > 0 {
+	if *fExit { //nolint:nestif // well...
 		st.tree = true
-		ap.HideCursor()
+		ap.W, ap.H, err = ansipixels.NonRawTerminalSize()
+		if err != nil {
+			return log.FErrf("failed to get terminal size: %v", err)
+		}
+	} else {
+		if err = ap.Open(); err != nil {
+			return 1 // error already logged
+		}
+		defer ap.Restore()
+		if st.auto > 0 {
+			st.tree = true
+			ap.HideCursor()
+		}
+		ap.SyncBackgroundColor()
 	}
-	ap.SyncBackgroundColor()
 	ap.OnResize = st.OnResize
-	_ = ap.OnResize()   // initial draw.
-	ap.AutoSync = false // keeps cursor blinking.
-	err = ap.FPSTicks(st.Tick)
+	_ = ap.OnResize() // initial draw.
+	if !*fExit {
+		ap.AutoSync = false // keeps cursor blinking.
+		err = ap.FPSTicks(st.Tick)
+	}
 	if *fMemprofile != "" {
 		f, errMP := os.Create(*fMemprofile)
 		if errMP != nil {
