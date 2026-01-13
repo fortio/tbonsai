@@ -9,7 +9,7 @@ require (
 	fortio.org/rand v1.1.0
 	fortio.org/safecast v1.2.0
 	fortio.org/terminal v0.63.0
-	golang.org/x/image v0.34.0
+	golang.org/x/image v0.35.0
 )
 
 require (
