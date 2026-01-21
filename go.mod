@@ -8,7 +8,7 @@ require (
 	fortio.org/log v1.18.3
 	fortio.org/rand v1.1.0
 	fortio.org/safecast v1.2.0
-	fortio.org/terminal v0.63.1
+	fortio.org/terminal v0.63.3
 	golang.org/x/image v0.35.0
 )
 
