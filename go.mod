@@ -1,6 +1,6 @@
 module fortio.org/tbonsai
 
-go 1.24.0
+go 1.25.0
 
 require (
 	fortio.org/cli v1.12.3
@@ -9,7 +9,7 @@ require (
 	fortio.org/rand v1.1.0
 	fortio.org/safecast v1.2.0
 	fortio.org/terminal v0.64.1
-	golang.org/x/image v0.36.0
+	golang.org/x/image v0.37.0
 )
 
 require (
