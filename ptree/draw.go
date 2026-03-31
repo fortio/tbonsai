@@ -54,7 +54,7 @@ func calcBoundingBox(points []float64, imgBounds image.Rectangle) (x0Int, y0Int,
 	minX, maxX := points[0], points[0]
 	minY, maxY := points[1], points[1]
 	for i := 2; i < len(points); i += 2 {
-		x, y := points[i], points[i+1]
+		x, y := points[i], points[i+1] //nolint:gosec // even number of points guaranteed by check above
 		minX = min(minX, x)
 		maxX = max(maxX, x)
 		minY = min(minY, y)
